@@ -1,1 +1,1 @@
-export let endpoint = 'http://localhost:8080';
+export let endpoint = 'https://pomf1.080609,xyz';
