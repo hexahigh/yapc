@@ -3,7 +3,8 @@
     import { onMount } from 'svelte';
  
     let file;
-    let status;
+    let status = "Ready to upload :)";
+    let link = "";
     let hash;
     let filename;
     let ext;
@@ -34,7 +35,8 @@
       }
    
       hash = await response.text();
-      status = 'Uploaded successfully! You can download it from this link: ' + `${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`;
+      status = 'Uploaded successfully! You can download it from the link below:';
+      link = `${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`
     }
  </script>
    
@@ -42,4 +44,5 @@
     <input type="file" bind:files={file} required />
     <button type="submit">Upload</button>
     <p id="status">{status}</p>
+    <a id="link" href={link}>{link}</a>
  </form>

@@ -1,5 +1,5 @@
 import { endpoint } from '$lib/conf.js';
-import { mime } from 'mime';
+import mime from 'mime';
 
 export async function GET({ url }) {
    // Extract the HASH and the file extension from the url
@@ -17,11 +17,11 @@ export async function GET({ url }) {
    let contentType = mime.getType(ext) || 'application/octet-stream';
 
    // Return the file with the correct content type and filename
-   return {
-       headers: {
-           'Content-Type': contentType,
-           'Content-Disposition': `attachment; filename="${filename}"`
-       },
-       body: await response.blob()
-   };
+   // Return the file with the correct content type and filename
+   return new Response(await response.blob(), {
+    headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${filename}"`
+    },
+});
 }
