@@ -17,8 +17,7 @@ export async function GET({ url }) {
    let contentType = mime.getType(ext) || 'application/octet-stream';
 
    // Return the file with the correct content type and filename
-   // Return the file with the correct content type and filename
-   return new Response(await response.blob(), {
+   return new Response(response.body, {
     headers: {
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${filename}"`
