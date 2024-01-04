@@ -1,11 +1,10 @@
 package main
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"net/http"
@@ -37,13 +36,13 @@ func main() {
 		}
 		defer file.Close()
 
-		hasher := sha1.New()
+		hasher := crc32.NewIEEE()
 		if _, err := io.Copy(hasher, file); err != nil {
 			http.Error(w, "Failed to hash file", http.StatusInternalServerError)
 			return
 		}
 
-		hash := hex.EncodeToString(hasher.Sum(nil))
+		hash := fmt.Sprintf("%x", hasher.Sum32())
 		filename := *dataDir + "/" + hash
 
 		// Check if file already exists and return 200 and hash
