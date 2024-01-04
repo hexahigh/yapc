@@ -10,6 +10,7 @@
 	let filenames = [];
 	let exts = [];
 	let showInfo = false;
+	let uploadCount;
 
     let totalFiles;
     let totalSize;
@@ -33,7 +34,8 @@
     });
 
 	async function handleSubmit(event) {
-		status = 'Uploading...';
+		uploadCount = 0;
+		status = 'Starting upload...';
 		event.preventDefault();
 
 		for (let i = 0; i < files.length; i++) {
@@ -54,11 +56,12 @@
 				return;
 			}
 
-			let hash = await response.text();
-			status = 'Uploaded successfully! You can download it from the link below:';
-			let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
-			links = [...links, link];
-			filenames = [...filenames, filename];
+            let hash = await response.text();
+            uploadCount++;
+            status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
+            let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
+            links = [...links, link];
+            filenames = [...filenames, filename];
 		}
 	}
 
@@ -116,8 +119,7 @@
 {/if}
 
 <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-	<h1 class="text-3xl font-bold mb-5">YAPC</h1>
-	<h3 class="text-2xl font-bold mb-10">Yet another Pomf clone</h3>
+	<img class="w-64 h-64 pointer-events-none" src="/img/logo.svg" ondragstart="return false" alt="YAPC logo" />
 	<form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
 		<div class="flex flex-col">
 			<label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
