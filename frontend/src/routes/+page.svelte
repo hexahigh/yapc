@@ -56,7 +56,7 @@
 
 			let hash = await response.text();
 			status = 'Uploaded successfully! You can download it from the link below:';
-			let link = `${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`;
+			let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
 			links = [...links, link];
 			filenames = [...filenames, filename];
 		}
