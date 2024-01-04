@@ -20,6 +20,10 @@ var (
 func main() {
 	flag.Parse()
 	http.HandleFunc("/store", func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+		if r.Method == "OPTIONS" {
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -72,6 +76,10 @@ func main() {
 	})
 
 	http.HandleFunc("/get/", func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+		if r.Method == "OPTIONS" {
+			return
+		}
 		hash := r.URL.Path[len("/get/"):]
 		filename := filepath.Join(*dataDir, hash)
 
@@ -98,5 +106,24 @@ func main() {
 		}
 	})
 
+	onStart()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+}
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func onStart() {
+	// Check if data directory exists
+	_, err := os.Stat(*dataDir)
+	if os.IsNotExist(err) {
+		// Create data directory
+		err := os.Mkdir(*dataDir, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
