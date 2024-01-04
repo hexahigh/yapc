@@ -41,12 +41,26 @@ func main() {
 		hash := hex.EncodeToString(hasher.Sum(nil))
 		filename := *dataDir + "/" + hash
 
+		// Check if file already exists and return 200 and hash
+		_, err = os.Stat(filename)
+		if err == nil {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(hash))
+			return
+		}
+
 		newFile, err := os.Create(filename)
 		if err != nil {
 			http.Error(w, "Failed to create file", http.StatusInternalServerError)
 			return
 		}
 		defer newFile.Close()
+
+		// Reset the file pointer to the beginning of the file
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			http.Error(w, "Failed to reset file pointer", http.StatusInternalServerError)
+			return
+		}
 
 		if _, err := io.Copy(newFile, file); err != nil {
 			http.Error(w, "Failed to save file", http.StatusInternalServerError)
