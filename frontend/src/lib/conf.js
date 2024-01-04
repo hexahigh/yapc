@@ -1,1 +1,1 @@
-export let endpoint = 'https://pomf1.080609,xyz';
+export let endpoint = 'https://pomf1.080609.xyz';
