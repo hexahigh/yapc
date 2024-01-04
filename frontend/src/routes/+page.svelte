@@ -129,21 +129,25 @@
 			>Upload</button
 		>
 		<p id="status" class="mt-4 text-center">{status}</p>
+	</form>
+	<div class="mt-10 w-full">
 		{#each links as link, index}
-			<div class="flex justify-between mt-4">
-				<span>{filenames[index]}</span>
-				<div>
+			<div class="ml-11 grid grid-cols-3 gap-4 border-t-2 pt-4 px-4">
+				<span class="break-all col-span-1">{filenames[index]}</span>
+				<div class="break-all col-span-1">
 					<a href={link} class="text-blue-500 hover:underline">{link}</a>
+				</div>
+				<div class="col-span-1">
 					<button
 						on:click={() => copyToClipboard(index)}
 						type="button"
-						class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+						class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
 						>Copy</button
 					>
 				</div>
 			</div>
 		{/each}
-	</form>
+	</div>
 </div>
 <footer class="w-full text-center border-t border-grey p-4 pin-b">
 	<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
