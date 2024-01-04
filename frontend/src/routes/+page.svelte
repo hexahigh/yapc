@@ -1,71 +1,156 @@
 <script>
-    import { endpoint } from '$lib/conf.js'
-    import { onMount } from 'svelte';
+	import { endpoint } from '$lib/conf.js';
+	import { onMount } from 'svelte';
+    import prettyBytes from 'pretty-bytes';
 
-    let files = [];
-    let status = "Ready to upload :)";
-    let links = [];
-    let hashes = [];
-    let filenames = [];
-    let exts = [];
+	let files = [];
+	let status = 'Ready to upload :)';
+	let links = [];
+	let hashes = [];
+	let filenames = [];
+	let exts = [];
+	let showInfo = false;
 
-    let currentDomain;
+    let totalFiles;
+    let totalSize;
 
-    onMount(() => currentDomain = window.location.origin);
-
-    async function handleSubmit(event) {
-        status = 'Uploading...';
-        event.preventDefault();
-
-        for (let i = 0; i < files.length; i++) {
-            let filename = files[i].name || 'file.bin';
-            let ext = filename.split('.').pop() || '.bin';
-
-            const formData = new FormData();
-            formData.append('file', files[i]);
-            console.log(files[i])
-
-            const response = await fetch(`${endpoint}/store`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                status = `Error: ${response.status} ${response.statusText}`;
-                return;
-            }
-
-            let hash = await response.text();
-            status = 'Uploaded successfully! You can download it from the link below:';
-            let link = `${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`
-            links = [...links, link];
-            filenames = [...filenames, filename];
-        }
+    async function getStats() {
+        const response = await fetch(`${endpoint}/stats`);
+        const data = await response.json();
+        totalFiles = data.totalFiles;
+        totalSize = prettyBytes(data.totalSize);
     }
 
-    function copyToClipboard(index) {
-        navigator.clipboard.writeText(links[index]);
-    }
+	function toggleInfo() {
+		showInfo = !showInfo;
+	}
+
+	let currentDomain;
+
+    onMount(async () => {
+        currentDomain = window.location.origin;
+        await getStats();
+    });
+
+	async function handleSubmit(event) {
+		status = 'Uploading...';
+		event.preventDefault();
+
+		for (let i = 0; i < files.length; i++) {
+			let filename = files[i].name || 'file.bin';
+			let ext = filename.split('.').pop() || '.bin';
+
+			const formData = new FormData();
+			formData.append('file', files[i]);
+			console.log(files[i]);
+
+			const response = await fetch(`${endpoint}/store`, {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				status = `Error: ${response.status} ${response.statusText}`;
+				return;
+			}
+
+			let hash = await response.text();
+			status = 'Uploaded successfully! You can download it from the link below:';
+			let link = `${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`;
+			links = [...links, link];
+			filenames = [...filenames, filename];
+		}
+	}
+
+	function copyToClipboard(index) {
+		navigator.clipboard.writeText(links[index]);
+	}
 </script>
 
+{#if showInfo}
+	<div
+		class="fixed z-10 inset-0 overflow-y-auto"
+		aria-labelledby="modal-title"
+		role="dialog"
+		aria-modal="true"
+	>
+		<div
+			class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+		>
+			<div
+				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+				aria-hidden="true"
+			></div>
+			<span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"
+				>&#8203;</span
+			>
+			<div
+				class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+			>
+				<div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+					<div class="sm:flex sm:items-start">
+						<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+							<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+								Info
+							</h3>
+							<div class="mt-2">
+                                <p class="text-base text-gray-500">Statistics:</p>
+								<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
+                                <p class="text-sm text-gray-500">Total file size: {totalSize}</p>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+					<button
+						type="button"
+						on:click={toggleInfo}
+						class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+					>
+						Close
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
 <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-    <h1 class="text-3xl font-bold mb-5">YAPC</h1>
-    <h3 class="text-2xl font-bold mb-10">Yet another Pomf clone</h3>
-    <form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
-        <div class="flex flex-col">
-            <label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
-            <input id="file" type="file" bind:files={files} multiple required class="p-2 border rounded-md" />
-        </div>
-        <button type="submit" class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded">Upload</button>
-        <p id="status" class="mt-4 text-center">{status}</p>
-        {#each links as link, index}
-            <div class="flex justify-between mt-4">
-                <span>{filenames[index]}</span>
-                <div>
-                    <a href={link} class="text-blue-500 hover:underline">{link}</a>
-                    <button on:click={() => copyToClipboard(index)} type="button" class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded">Copy</button>
-                </div>
-            </div>
-        {/each}
-    </form>
+	<h1 class="text-3xl font-bold mb-5">YAPC</h1>
+	<h3 class="text-2xl font-bold mb-10">Yet another Pomf clone</h3>
+	<form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
+		<div class="flex flex-col">
+			<label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
+			<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
+		</div>
+		<button
+			type="submit"
+			class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded"
+			>Upload</button
+		>
+		<p id="status" class="mt-4 text-center">{status}</p>
+		{#each links as link, index}
+			<div class="flex justify-between mt-4">
+				<span>{filenames[index]}</span>
+				<div>
+					<a href={link} class="text-blue-500 hover:underline">{link}</a>
+					<button
+						on:click={() => copyToClipboard(index)}
+						type="button"
+						class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+						>Copy</button
+					>
+				</div>
+			</div>
+		{/each}
+	</form>
 </div>
+<footer class="w-full text-center border-t border-grey p-4 pin-b">
+	<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
+	<button
+		on:click={toggleInfo}
+		class="py-2 px-4 rounded hover:underline"
+	>
+		Info
+	</button>
+</footer>

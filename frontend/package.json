@@ -29,6 +29,8 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"mime": "^4.0.1"
+		"@sveltejs/adapter-cloudflare": "^3.0.1",
+		"mime": "^4.0.1",
+		"pretty-bytes": "^6.1.1"
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -149,6 +150,42 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(fileSize)
+	})
+
+	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+		if r.Method == "OPTIONS" {
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method, use GET", http.StatusMethodNotAllowed)
+			return
+		}
+
+		files, err := fs.ReadDir(os.DirFS(*dataDir), ".")
+		if err != nil {
+			http.Error(w, "Failed to read directory", http.StatusInternalServerError)
+			return
+		}
+
+		totalSize := int64(0)
+		for _, file := range files {
+			info, err := file.Info()
+			if err != nil {
+				http.Error(w, "Failed to get file info", http.StatusInternalServerError)
+				return
+			}
+			totalSize += info.Size()
+		}
+
+		response := map[string]interface{}{
+			"totalFiles": len(files),
+			"totalSize":  totalSize,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
 	})
 	onStart()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
