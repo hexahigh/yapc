@@ -1,7 +1,7 @@
 package main
 
 import (
-	"crypto/sha256"
+	"crypto/sha1"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -36,7 +36,7 @@ func main() {
 		}
 		defer file.Close()
 
-		hasher := sha256.New()
+		hasher := sha1.New()
 		if _, err := io.Copy(hasher, file); err != nil {
 			http.Error(w, "Failed to hash file", http.StatusInternalServerError)
 			return

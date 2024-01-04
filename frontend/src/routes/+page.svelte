@@ -49,6 +49,8 @@
 </script>
 
 <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+    <h1 class="text-3xl font-bold mb-5">YAPC</h1>
+    <h3 class="text-2xl font-bold mb-10">Yet another Pomf clone</h3>
     <form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
         <div class="flex flex-col">
             <label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
