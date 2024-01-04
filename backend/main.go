@@ -18,6 +18,7 @@ var (
 )
 
 func main() {
+	flag.Parse()
 	http.HandleFunc("/store", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -40,8 +41,14 @@ func main() {
 		hash := hex.EncodeToString(hasher.Sum(nil))
 		filename := *dataDir + "/" + hash
 
-		err = os.WriteFile(filename, []byte{}, 0644)
+		newFile, err := os.Create(filename)
 		if err != nil {
+			http.Error(w, "Failed to create file", http.StatusInternalServerError)
+			return
+		}
+		defer newFile.Close()
+
+		if _, err := io.Copy(newFile, file); err != nil {
 			http.Error(w, "Failed to save file", http.StatusInternalServerError)
 			return
 		}
@@ -53,6 +60,9 @@ func main() {
 	http.HandleFunc("/get/", func(w http.ResponseWriter, r *http.Request) {
 		hash := r.URL.Path[len("/get/"):]
 		filename := filepath.Join(*dataDir, hash)
+
+		fmt.Println("GET", r.URL.Path)
+		fmt.Println("Attempting to get", filename)
 
 		_, err := os.Stat(filename)
 		if os.IsNotExist(err) {
