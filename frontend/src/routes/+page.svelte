@@ -166,6 +166,7 @@
 </div>
 <footer class="w-full text-center border-t border-grey p-4 pin-b">
 	<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
+	<a href="/terms" class="hover:underline ml-4">Terms</a>
 	<button on:click={toggleInfo} class="py-2 px-4 rounded hover:underline"> Info </button>
 	<div class="flex justify-center">
 		<p class="py-2 px-4">Endpoint:</p>
