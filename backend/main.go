@@ -183,7 +183,10 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
 	})
+	fmt.Println("Starting")
 	onStart()
+	fmt.Println("Started")
+	fmt.Println("Listening on port", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 
@@ -201,6 +204,21 @@ func onStart() {
 		err := os.Mkdir(*dataDir, 0755)
 		if err != nil {
 			log.Fatal(err)
+		}
+	}
+	// Check if there are uncompressed files and compression is on and vice versa
+	files, err := os.ReadDir(*dataDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		if filepath.Ext(file.Name()) != ".zst" && *compress {
+			// File is not compressed and compression is on, warn the user
+			log.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
+		} else if filepath.Ext(file.Name()) == ".zst" && !*compress {
+			// File is compressed and compression is off, warn the user
+			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
 		}
 	}
 }
