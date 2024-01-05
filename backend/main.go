@@ -49,6 +49,9 @@ func main() {
 
 		hash := fmt.Sprintf("%x", hasher.Sum32())
 		filename := *dataDir + "/" + hash
+		if *compress {
+			filename += ".zst"
+		}
 
 		// Check if file already exists and return 200 and hash
 		_, err = os.Stat(filename)
@@ -101,6 +104,9 @@ func main() {
 		}
 		hash := r.URL.Path[len("/get/"):]
 		filename := filepath.Join(*dataDir, hash)
+		if *compress {
+			filename += ".zst"
+		}
 
 		fmt.Println("GET", r.URL.Path)
 		fmt.Println("Attempting to get", filename)
