@@ -6,9 +6,10 @@ export async function GET({ url }) {
    const hash = url.searchParams.get('h') || '0';
    const ext = url.searchParams.get('e') || 'bin';
    const filename = url.searchParams.get('f') || 'file.bin';
+   const ep = url.searchParams.get('ep') || endpoint;
 
    // Construct the URL to the file
-   const fileUrl = `${endpoint}/get/${hash}`;
+   const fileUrl = `${ep}/get/${hash}`;
 
    // Send a GET request to the file URL
    const response = await fetch(fileUrl);

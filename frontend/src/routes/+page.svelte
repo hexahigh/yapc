@@ -1,7 +1,7 @@
 <script>
 	import { endpoint } from '$lib/conf.js';
 	import { onMount } from 'svelte';
-    import prettyBytes from 'pretty-bytes';
+	import prettyBytes from 'pretty-bytes';
 
 	let files = [];
 	let status = 'Ready to upload :)';
@@ -11,16 +11,17 @@
 	let exts = [];
 	let showInfo = false;
 	let uploadCount;
+	let ep = endpoint;
 
-    let totalFiles;
-    let totalSize;
+	let totalFiles;
+	let totalSize;
 
-    async function getStats() {
-        const response = await fetch(`${endpoint}/stats`);
-        const data = await response.json();
-        totalFiles = data.totalFiles;
-        totalSize = prettyBytes(data.totalSize);
-    }
+	async function getStats() {
+		const response = await fetch(`${ep}/stats`);
+		const data = await response.json();
+		totalFiles = data.totalFiles;
+		totalSize = prettyBytes(data.totalSize);
+	}
 
 	function toggleInfo() {
 		showInfo = !showInfo;
@@ -28,10 +29,10 @@
 
 	let currentDomain;
 
-    onMount(async () => {
-        currentDomain = window.location.origin;
-        await getStats();
-    });
+	onMount(async () => {
+		currentDomain = window.location.origin;
+		await getStats();
+	});
 
 	async function handleSubmit(event) {
 		uploadCount = 0;
@@ -46,7 +47,7 @@
 			formData.append('file', files[i]);
 			console.log(files[i]);
 
-			const response = await fetch(`${endpoint}/store`, {
+			const response = await fetch(`${ep}/store`, {
 				method: 'POST',
 				body: formData
 			});
@@ -56,12 +57,12 @@
 				return;
 			}
 
-            let hash = await response.text();
-            uploadCount++;
-            status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
-            let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
-            links = [...links, link];
-            filenames = [...filenames, filename];
+			let hash = await response.text();
+			uploadCount++;
+			status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
+			let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}&ep=${ep}`);
+			links = [...links, link];
+			filenames = [...filenames, filename];
 		}
 	}
 
@@ -93,13 +94,11 @@
 				<div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
 					<div class="sm:flex sm:items-start">
 						<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-							<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-								Info
-							</h3>
+							<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Info</h3>
 							<div class="mt-2">
-                                <p class="text-base text-gray-500">Statistics:</p>
+								<p class="text-base text-gray-500">Statistics:</p>
 								<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
-                                <p class="text-sm text-gray-500">Total file size: {totalSize}</p>
+								<p class="text-sm text-gray-500">Total file size: {totalSize}</p>
 							</div>
 						</div>
 					</div>
@@ -119,7 +118,12 @@
 {/if}
 
 <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-	<img class="w-64 h-64 pointer-events-none" src="/img/logo.svg" ondragstart="return false" alt="YAPC logo" />
+	<img
+		class="w-64 h-64 pointer-events-none"
+		src="/img/logo.svg"
+		ondragstart="return false"
+		alt="YAPC logo"
+	/>
 	<form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
 		<div class="flex flex-col">
 			<label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
@@ -153,10 +157,13 @@
 </div>
 <footer class="w-full text-center border-t border-grey p-4 pin-b">
 	<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
-	<button
-		on:click={toggleInfo}
-		class="py-2 px-4 rounded hover:underline"
-	>
-		Info
-	</button>
+	<button on:click={toggleInfo} class="py-2 px-4 rounded hover:underline"> Info </button>
+	<div class="flex justify-center">
+		<p class="py-2 px-4">Endpoint:</p>
+		<select bind:value={ep} class="py-2 px-4 rounded hover:underline">
+			<option value="https://pomf1.080609.xyz" selected>Main instance</option>
+			<option value="http://localhost:8080">Local</option>
+		</select>
+
+	</div>
 </footer>
