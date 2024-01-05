@@ -11,11 +11,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 var (
-	dataDir = flag.String("d", "./data", "Folder to store files")
-	port    = flag.Int("p", 8080, "Port to listen on")
+	dataDir  = flag.String("d", "./data", "Folder to store files")
+	port     = flag.Int("p", 8080, "Port to listen on")
+	compress = flag.Bool("c", false, "Enable compression")
+	level    = flag.Int("l", 3, "Compression level")
 )
 
 func main() {
@@ -67,9 +71,23 @@ func main() {
 			return
 		}
 
-		if _, err := io.Copy(newFile, file); err != nil {
-			http.Error(w, "Failed to save file", http.StatusInternalServerError)
-			return
+		if *compress {
+			encoder, err := zstd.NewWriter(newFile, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(*level)))
+			if err != nil {
+				http.Error(w, "Failed to create encoder", http.StatusInternalServerError)
+				return
+			}
+			defer encoder.Close()
+
+			if _, err := io.Copy(encoder, file); err != nil {
+				http.Error(w, "Failed to save file", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			if _, err := io.Copy(newFile, file); err != nil {
+				http.Error(w, "Failed to save file", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		w.WriteHeader(http.StatusCreated)
@@ -100,10 +118,25 @@ func main() {
 		}
 		defer file.Close()
 
-		_, err = io.Copy(w, file)
-		if err != nil {
-			http.Error(w, "Failed to send file", http.StatusInternalServerError)
-			return
+		if *compress {
+			decoder, err := zstd.NewReader(file)
+			if err != nil {
+				http.Error(w, "Failed to create decoder", http.StatusInternalServerError)
+				return
+			}
+			defer decoder.Close()
+
+			_, err = io.Copy(w, decoder.IOReadCloser())
+			if err != nil {
+				http.Error(w, "Failed to send file", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			_, err = io.Copy(w, file)
+			if err != nil {
+				http.Error(w, "Failed to send file", http.StatusInternalServerError)
+				return
+			}
 		}
 	})
 
