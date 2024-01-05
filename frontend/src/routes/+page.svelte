@@ -75,6 +75,11 @@
 	function copyToClipboard(index) {
 		navigator.clipboard.writeText(links[index]);
 	}
+
+	function copyAllToClipboard() {
+        const allLinks = links.join('\n');
+        navigator.clipboard.writeText(allLinks);
+    }
 </script>
 
 {#if showInfo}
@@ -162,6 +167,7 @@
 				</div>
 			</div>
 		{/each}
+		<button on:click={copyAllToClipboard} class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"> Copy All Links </button>
 	</div>
 </div>
 <footer class="w-full text-center border-t border-grey p-4 pin-b">
