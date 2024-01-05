@@ -146,51 +146,6 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/getFileMeta", func(w http.ResponseWriter, r *http.Request) {
-		enableCors(&w)
-		if r.Method == "OPTIONS" {
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "Invalid request method, use POST", http.StatusMethodNotAllowed)
-			return
-		}
-		// Read hash from json
-		var data struct {
-			Hash string `json:"hash"`
-		}
-
-		err := json.NewDecoder(r.Body).Decode(&data)
-		if err != nil {
-			http.Error(w, "Failed to decode JSON", http.StatusBadRequest)
-			return
-		}
-		// Check if file exists
-		filename := filepath.Join(*dataDir, data.Hash)
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			http.Error(w, "File does not exist", http.StatusNotFound)
-			return
-		}
-
-		// Get meta
-		meta, err := os.Stat(filename)
-		if err != nil {
-			http.Error(w, "Failed to get file metadata", http.StatusInternalServerError)
-			return
-		}
-
-		// Create a struct to hold the file size
-		var fileSize struct {
-			Size int64 `json:"size"`
-		}
-		fileSize.Size = meta.Size()
-
-		// Send file size
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(fileSize)
-	})
-
 	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
 		enableCors(&w)
 		if r.Method == "OPTIONS" {
@@ -218,8 +173,10 @@ func main() {
 		}
 
 		response := map[string]interface{}{
-			"totalFiles": len(files),
-			"totalSize":  totalSize,
+			"totalFiles":        len(files),
+			"totalSize":         totalSize,
+			"compression":       *compress,
+			"compression_level": *level,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
