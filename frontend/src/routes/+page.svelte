@@ -24,7 +24,7 @@
 		const data = await response.json();
 		totalFiles = data.totalFiles || 'unknown';
 		totalSize = prettyBytes(data.totalSize) || 'unknown';
-		compression = data.compression || 'unknown';
+		compression = data.compression;
 		compressionLevel = data.compression_level || 'unknown';
 		server_version = data.version || 'unknown';
 	}
