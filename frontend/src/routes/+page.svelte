@@ -17,6 +17,7 @@
 	let totalSize;
 	let compression;
 	let compressionLevel;
+	let server_version
 
 	async function getStats() {
 		const response = await fetch(`${ep}/stats`);
@@ -24,7 +25,8 @@
 		totalFiles = data.totalFiles || 'unknown';
 		totalSize = prettyBytes(data.totalSize) || 'unknown';
 		compression = data.compression || 'unknown';
-		compressionLevel = data.compressionLevel || 'unknown';
+		compressionLevel = data.compression_level || 'unknown';
+		server_version = data.version || 'unknown';
 	}
 
 	function toggleInfo() {
@@ -101,6 +103,7 @@
 							<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Info</h3>
 							<div class="mt-2">
 								<p class="text-base text-gray-500">Statistics:</p>
+								<p class="text-sm text-gray-500">Server version: {server_version}</p>
 								<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
 								<p class="text-sm text-gray-500">Total file size: {totalSize}</p>
 								<p class="text-sm text-gray-500">Compression: {compression}</p>

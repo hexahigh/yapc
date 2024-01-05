@@ -15,6 +15,8 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
+const version = "1.1.3"
+
 var (
 	dataDir  = flag.String("d", "./data", "Folder to store files")
 	port     = flag.Int("p", 8080, "Port to listen on")
@@ -177,6 +179,7 @@ func main() {
 			"totalSize":         totalSize,
 			"compression":       *compress,
 			"compression_level": *level,
+			"version":           version,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
