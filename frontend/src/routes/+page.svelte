@@ -15,12 +15,16 @@
 
 	let totalFiles;
 	let totalSize;
+	let compression;
+	let compressionLevel;
 
 	async function getStats() {
 		const response = await fetch(`${ep}/stats`);
 		const data = await response.json();
-		totalFiles = data.totalFiles;
-		totalSize = prettyBytes(data.totalSize);
+		totalFiles = data.totalFiles || 'unknown';
+		totalSize = prettyBytes(data.totalSize) || 'unknown';
+		compression = data.compression || 'unknown';
+		compressionLevel = data.compressionLevel || 'unknown';
 	}
 
 	function toggleInfo() {
@@ -99,6 +103,8 @@
 								<p class="text-base text-gray-500">Statistics:</p>
 								<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
 								<p class="text-sm text-gray-500">Total file size: {totalSize}</p>
+								<p class="text-sm text-gray-500">Compression: {compression}</p>
+								<p class="text-sm text-gray-500">Compression level: {compressionLevel}</p>
 							</div>
 						</div>
 					</div>
