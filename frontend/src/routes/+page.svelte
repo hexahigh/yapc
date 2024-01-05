@@ -35,7 +35,7 @@
 
 	async function handleSubmit(event) {
 		uploadCount = 0;
-		status = 'Starting upload...';
+		status = 'Uploading...';
 		event.preventDefault();
 
 		for (let i = 0; i < files.length; i++) {

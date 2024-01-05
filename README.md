@@ -1,5 +1,4 @@
-# YAPC
-## Yet another pomf clone
+![YAPC logo](https://pomf.080609.xyz/img/logo.svg)<br>
 [![License](https://img.shields.io/github/license/hexahigh/yapc)](https://github.com/hexahigh/yapc/blob/main/LICENSE)
 ![Go report card](https://goreportcard.com/badge/github.com/hexahigh/yapc/backend)<br>
 Yapc is yet another file sharing site inspired by pomf.
