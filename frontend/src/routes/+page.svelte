@@ -1,5 +1,5 @@
 <script>
-	import { endpoint } from '$lib/conf.js';
+	import { endpoint, instanceInfo } from '$lib/conf.js';
 	import { onMount } from 'svelte';
 	import prettyBytes from 'pretty-bytes';
 
@@ -107,6 +107,7 @@
 						<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
 							<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Info</h3>
 							<div class="mt-2">
+								<p>{instanceInfo}</p>
 								<p class="text-base text-gray-500">Statistics:</p>
 								<p class="text-sm text-gray-500">Server version: {server_version}</p>
 								<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
