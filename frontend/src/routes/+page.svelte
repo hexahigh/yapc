@@ -2,6 +2,7 @@
 	import { endpoint, instanceInfo } from '$lib/conf.js';
 	import { onMount } from 'svelte';
 	import prettyBytes from 'pretty-bytes';
+	import axios from 'axios';
 
 	let files = [];
 	let status = 'Ready to upload :)';
@@ -17,7 +18,9 @@
 	let totalSize;
 	let compression;
 	let compressionLevel;
-	let server_version
+	let server_version;
+	let uploadProgress = 0;
+    let errorMessage = '';
 
 	async function getStats() {
 		const response = await fetch(`${ep}/stats`);
@@ -40,46 +43,54 @@
 		await getStats();
 	});
 
-	async function handleSubmit(event) {
-		uploadCount = 0;
-		status = 'Uploading...';
-		event.preventDefault();
+    async function handleSubmit(event) {
+        uploadCount = 0;
+        status = 'Uploading...';
+        uploadProgress = 0;
+        errorMessage = '';
+        event.preventDefault();
 
-		for (let i = 0; i < files.length; i++) {
-			let filename = files[i].name || 'file.bin';
-			let ext = filename.split('.').pop() || '.bin';
+        for (let i = 0; i < files.length; i++) {
+            let filename = files[i].name || 'file.bin';
+            let ext = filename.split('.').pop() || '.bin';
 
-			const formData = new FormData();
-			formData.append('file', files[i]);
-			console.log(files[i]);
+            const formData = new FormData();
+            formData.append('file', files[i]);
 
-			const response = await fetch(`${ep}/store`, {
-				method: 'POST',
-				body: formData
-			});
+            try {
+                const response = await axios.post(`${ep}/store`, formData, {
+                    onUploadProgress: (progressEvent) => {
+                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        uploadProgress = percentCompleted;
+                    }
+                });
 
-			if (!response.ok) {
-				status = `Error: ${response.status} ${response.statusText}`;
-				return;
-			}
-
-			let hash = await response.text();
-			uploadCount++;
-			status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
-			let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}&ep=${ep}`);
-			links = [...links, link];
-			filenames = [...filenames, filename];
-		}
-	}
+                if (response.status === 200 || response.status === 201) {
+                    let hash = response.data;
+                    uploadCount++;
+                    status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
+                    let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}&ep=${ep}`);
+                    links = [...links, link];
+                    filenames = [...filenames, filename];
+                } else {
+                    errorMessage = `Error: ${response.status} ${response.statusText}`;
+                    break;
+                }
+            } catch (error) {
+                errorMessage = error.message;
+                break;
+            }
+        }
+    }
 
 	function copyToClipboard(index) {
 		navigator.clipboard.writeText(links[index]);
 	}
 
 	function copyAllToClipboard() {
-        const allLinks = links.join('\n');
-        navigator.clipboard.writeText(allLinks);
-    }
+		const allLinks = links.join('\n');
+		navigator.clipboard.writeText(allLinks);
+	}
 </script>
 
 {#if showInfo}
@@ -150,6 +161,12 @@
 			>Upload</button
 		>
 		<p id="status" class="mt-4 text-center">{status}</p>
+		{#if uploadProgress > 0 && uploadProgress < 100}
+			<progress value={uploadProgress} max="100" class="w-full"></progress>
+		{/if}
+		{#if errorMessage}
+			<p class="mt-4 text-center text-red-500">{errorMessage}</p>
+		{/if}
 	</form>
 	<div class="mt-10 w-full">
 		{#each links as link, index}
@@ -169,7 +186,12 @@
 			</div>
 		{/each}
 	</div>
-	<button on:click={copyAllToClipboard} class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"> Copy All Links </button>
+	<button
+		on:click={copyAllToClipboard}
+		class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+	>
+		Copy All Links
+	</button>
 </div>
 <footer class="w-full text-center border-t border-grey p-4 pin-b">
 	<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
@@ -181,6 +203,5 @@
 			<option value="https://pomf1.080609.xyz" selected>Main instance</option>
 			<option value="http://localhost:8080">Local</option>
 		</select>
-
 	</div>
 </footer>
