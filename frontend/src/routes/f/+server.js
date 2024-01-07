@@ -8,6 +8,10 @@ export async function GET({ url }) {
    const filename = url.searchParams.get('f') || 'file.bin';
    const ep = url.searchParams.get('ep') || endpoint;
 
+    if (ep == "https://tiny-cougar-22.telebit.io") {
+        ep = endpoint;
+    }
+
    // Construct the URL to the file
    const fileUrl = `${ep}/get/${hash}`;
 
