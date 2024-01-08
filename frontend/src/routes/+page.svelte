@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import prettyBytes from 'pretty-bytes';
 	import axios from 'axios';
+	import autoAnimate from '@formkit/auto-animate';
 
 	let files = [];
 	let status = 'Ready to upload :)';
@@ -142,125 +143,127 @@
 	}
 </script>
 
-{#if showInfo}
-	<div
-		class="fixed z-10 inset-0 overflow-y-auto"
-		aria-labelledby="modal-title"
-		role="dialog"
-		aria-modal="true"
-	>
+<div use:autoAnimate>
+	{#if showInfo}
 		<div
-			class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+			class="fixed z-10 inset-0 overflow-y-auto"
+			aria-labelledby="modal-title"
+			role="dialog"
+			aria-modal="true"
 		>
 			<div
-				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-				aria-hidden="true"
-			></div>
-			<span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"
-				>&#8203;</span
+				class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
 			>
-			<div
-				class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
-			>
-				<div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-					<div class="sm:flex sm:items-start">
-						<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-							<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Info</h3>
-							<div class="mt-2">
-								<p>{instanceInfo}</p>
-								<p class="text-base text-gray-500">Statistics:</p>
-								<p class="text-sm text-gray-500">Server version: {server_version}</p>
-								<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
-								<p class="text-sm text-gray-500">Total file size: {totalSize}</p>
-								<p class="text-sm text-gray-500">Compression: {compression}</p>
-								<p class="text-sm text-gray-500">Compression level: {compressionLevel}</p>
+				<div
+					class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+					aria-hidden="true"
+				></div>
+				<span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"
+					>&#8203;</span
+				>
+				<div
+					class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+				>
+					<div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+						<div class="sm:flex sm:items-start">
+							<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+								<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Info</h3>
+								<div class="mt-2">
+									<p>{instanceInfo}</p>
+									<p class="text-base text-gray-500">Statistics:</p>
+									<p class="text-sm text-gray-500">Server version: {server_version}</p>
+									<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
+									<p class="text-sm text-gray-500">Total file size: {totalSize}</p>
+									<p class="text-sm text-gray-500">Compression: {compression}</p>
+									<p class="text-sm text-gray-500">Compression level: {compressionLevel}</p>
+								</div>
 							</div>
 						</div>
 					</div>
-				</div>
-				<div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-					<button
-						type="button"
-						on:click={toggleInfo}
-						class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-					>
-						Close
-					</button>
+					<div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+						<button
+							type="button"
+							on:click={toggleInfo}
+							class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+						>
+							Close
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
-{/if}
+	{/if}
 
-<div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-	<img
-		class="w-64 h-64 pointer-events-none"
-		src="/img/logo.svg"
-		ondragstart="return false"
-		alt="YAPC logo"
-	/>
-	<form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
-		<div class="flex flex-col">
-			<label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
-			<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
+	<div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+		<img
+			class="w-64 h-64 pointer-events-none"
+			src="/img/logo.svg"
+			ondragstart="return false"
+			alt="YAPC logo"
+		/>
+		<form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
+			<div class="flex flex-col">
+				<label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
+				<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
+			</div>
+			<button
+				type="submit"
+				class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded"
+				>Upload</button
+			>
+			<label class="flex items-center mt-4">
+				<input type="checkbox" bind:checked={shortenUrl} class="form-checkbox" />
+				<span class="ml-2"
+					>Shorten URL (<a
+						href="https://en.wikipedia.org/wiki/Link_rot"
+						class="text-blue-500 hover:underline">Not recommended</a
+					>)</span
+				>
+			</label>
+			<p id="status" class="mt-4 text-center">{status}</p>
+			{#if uploadProgress > 0 && uploadProgress < 100}
+				<progress value={uploadProgress} max="100" class="w-full rounded-md"></progress>
+			{/if}
+			{#if errorMessage}
+				<p class="mt-4 text-center text-red-500">{errorMessage}</p>
+			{/if}
+		</form>
+		<div use:autoAnimate class="mt-10 w-full">
+			{#each links as link, index}
+				<div class="ml-11 grid grid-cols-3 gap-4 border-t-2 pt-4 px-4">
+					<span class="break-all col-span-1">{filenames[index]}</span>
+					<div class="break-all col-span-1">
+						<a href={link} class="text-blue-500 hover:underline">{link}</a>
+					</div>
+					<div class="col-span-1">
+						<button
+							on:click={() => copyToClipboard(index)}
+							type="button"
+							class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+							>Copy</button
+						>
+					</div>
+				</div>
+			{/each}
 		</div>
 		<button
-			type="submit"
-			class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded"
-			>Upload</button
+			on:click={copyAllToClipboard}
+			class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
 		>
-		<label class="flex items-center mt-4">
-			<input type="checkbox" bind:checked={shortenUrl} class="form-checkbox" />
-			<span class="ml-2"
-				>Shorten URL (<a
-					href="https://en.wikipedia.org/wiki/Link_rot"
-					class="text-blue-500 hover:underline">Not recommended</a
-				>)</span
-			>
-		</label>
-		<p id="status" class="mt-4 text-center">{status}</p>
-		{#if uploadProgress > 0 && uploadProgress < 100}
-			<progress value={uploadProgress} max="100" class="w-full rounded-md"></progress>
-		{/if}
-		{#if errorMessage}
-			<p class="mt-4 text-center text-red-500">{errorMessage}</p>
-		{/if}
-	</form>
-	<div class="mt-10 w-full">
-		{#each links as link, index}
-			<div class="ml-11 grid grid-cols-3 gap-4 border-t-2 pt-4 px-4">
-				<span class="break-all col-span-1">{filenames[index]}</span>
-				<div class="break-all col-span-1">
-					<a href={link} class="text-blue-500 hover:underline">{link}</a>
-				</div>
-				<div class="col-span-1">
-					<button
-						on:click={() => copyToClipboard(index)}
-						type="button"
-						class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
-						>Copy</button
-					>
-				</div>
-			</div>
-		{/each}
+			Copy All Links
+		</button>
 	</div>
-	<button
-		on:click={copyAllToClipboard}
-		class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
-	>
-		Copy All Links
-	</button>
+	<footer class="w-full text-center border-t border-grey p-4 pin-b">
+		<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
+		<a href="/terms" class="hover:underline ml-4">Terms</a>
+		<button on:click={toggleInfo} class="py-2 px-4 rounded hover:underline"> Info </button>
+		<div class="flex justify-center">
+			<p class="py-2 px-4">Endpoint:</p>
+			<select bind:value={ep} class="py-2 px-4 rounded hover:underline">
+				<option value={endpoint} selected>Main instance</option>
+				<option value="https://tiny-cougar-22.telebit.io">Unlimited</option>
+				<option value="http://localhost:8080">Local</option>
+			</select>
+		</div>
+	</footer>
 </div>
-<footer class="w-full text-center border-t border-grey p-4 pin-b">
-	<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
-	<a href="/terms" class="hover:underline ml-4">Terms</a>
-	<button on:click={toggleInfo} class="py-2 px-4 rounded hover:underline"> Info </button>
-	<div class="flex justify-center">
-		<p class="py-2 px-4">Endpoint:</p>
-		<select bind:value={ep} class="py-2 px-4 rounded hover:underline">
-			<option value={endpoint} selected>Main instance</option>
-			<option value="https://tiny-cougar-22.telebit.io">Unlimited</option>
-			<option value="http://localhost:8080">Local</option>
-		</select>
-	</div>
-</footer>
