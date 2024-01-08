@@ -220,7 +220,7 @@
 		</label>
 		<p id="status" class="mt-4 text-center">{status}</p>
 		{#if uploadProgress > 0 && uploadProgress < 100}
-			<progress value={uploadProgress} max="100" class="w-full"></progress>
+			<progress value={uploadProgress} max="100" class="w-full rounded-md"></progress>
 		{/if}
 		{#if errorMessage}
 			<p class="mt-4 text-center text-red-500">{errorMessage}</p>
