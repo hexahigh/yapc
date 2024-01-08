@@ -114,7 +114,7 @@
 					let hash = response.data;
 					uploadCount++;
 					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
-					let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}&ep=${ep}`);
+					let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
 					if (shortenUrl) {
 						link = await shortenLink(link);
 					}
