@@ -6,7 +6,7 @@ export async function GET({ url }) {
    const hash = url.searchParams.get('h') || '0';
    const ext = url.searchParams.get('e') || 'bin';
    const filename = url.searchParams.get('f') || 'file.bin';
-   const ep = url.searchParams.get('ep') || endpoint;
+   let ep = url.searchParams.get('ep') || endpoint;
 
    // The main instance is more reliable than the unlimited instance so it should be downloaded from there
     if (ep == "https://tiny-cougar-22.telebit.io") {
