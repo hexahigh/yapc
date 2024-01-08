@@ -20,7 +20,8 @@
 	let compressionLevel;
 	let server_version;
 	let uploadProgress = 0;
-    let errorMessage = '';
+	let errorMessage = '';
+	let shortenUrl = false;
 
 	async function getStats() {
 		const response = await fetch(`${ep}/stats`);
@@ -30,6 +31,50 @@
 		compression = data.compression;
 		compressionLevel = data.compression_level || 'unknown';
 		server_version = data.version || 'unknown';
+	}
+
+	async function archive(url) {
+		try {
+			const archiveUrl = `https://web.archive.org/save/${url}`;
+			const response = await axios.get(archiveUrl);
+			if (response.status === 200) {
+				const location = response.headers['content-location'];
+				const archivedUrl = `https://web.archive.org${location}`;
+				console.log(`Page archived at: ${archivedUrl}`);
+				return archivedUrl;
+			} else {
+				console.error(`Failed to archive page. Status: ${response.status}`);
+				return null;
+			}
+		} catch (error) {
+			console.error('Error archiving page:', error);
+			return null;
+		}
+	}
+
+	async function shortenLink(url) {
+		const payload = {
+			url: url
+		};
+
+		try {
+			const response = await axios.post('https://api.waa.ai/v2/links', payload, {
+				headers: {
+					Authorization: 'API-Key f0f2631bbc885aa29Ec204086d9ac32f310Cadd4',
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (response.data.success) {
+				return response.data.data.link; // Return the shortened URL
+			} else {
+				console.error('Error shortening URL:', response.data);
+				return url; // Return the original URL if there's an error
+			}
+		} catch (error) {
+			console.error('Error shortening URL:', error);
+			return url; // Return the original URL if there's an error
+		}
 	}
 
 	function toggleInfo() {
@@ -43,45 +88,49 @@
 		await getStats();
 	});
 
-    async function handleSubmit(event) {
-        uploadCount = 0;
-        status = 'Uploading...';
-        uploadProgress = 0;
-        errorMessage = '';
-        event.preventDefault();
+	async function handleSubmit(event) {
+		uploadCount = 0;
+		status = 'Uploading...';
+		uploadProgress = 0;
+		errorMessage = '';
+		event.preventDefault();
 
-        for (let i = 0; i < files.length; i++) {
-            let filename = files[i].name || 'file.bin';
-            let ext = filename.split('.').pop() || '.bin';
+		for (let i = 0; i < files.length; i++) {
+			let filename = files[i].name || 'file.bin';
+			let ext = filename.split('.').pop() || '.bin';
 
-            const formData = new FormData();
-            formData.append('file', files[i]);
+			const formData = new FormData();
+			formData.append('file', files[i]);
 
-            try {
-                const response = await axios.post(`${ep}/store`, formData, {
-                    onUploadProgress: (progressEvent) => {
-                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                        uploadProgress = percentCompleted;
-                    }
-                });
+			try {
+				const response = await axios.post(`${ep}/store`, formData, {
+					onUploadProgress: (progressEvent) => {
+						const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+						uploadProgress = percentCompleted;
+					}
+				});
 
-                if (response.status === 200 || response.status === 201) {
-                    let hash = response.data;
-                    uploadCount++;
-                    status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
-                    let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}&ep=${ep}`);
-                    links = [...links, link];
-                    filenames = [...filenames, filename];
-                } else {
-                    errorMessage = `Error: ${response.status} ${response.statusText}`;
-                    break;
-                }
-            } catch (error) {
-                errorMessage = error.message;
-                break;
-            }
-        }
-    }
+				if (response.status === 200 || response.status === 201) {
+					let hash = response.data;
+					uploadCount++;
+					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
+					let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}&ep=${ep}`);
+					if (shortenUrl) {
+						link = await shortenLink(link);
+					}
+					archive(link);
+					links = [...links, link];
+					filenames = [...filenames, filename];
+				} else {
+					errorMessage = `Error: ${response.status} ${response.statusText}`;
+					break;
+				}
+			} catch (error) {
+				errorMessage = error.message;
+				break;
+			}
+		}
+	}
 
 	function copyToClipboard(index) {
 		navigator.clipboard.writeText(links[index]);
@@ -160,6 +209,15 @@
 			class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded"
 			>Upload</button
 		>
+		<label class="flex items-center mt-4">
+			<input type="checkbox" bind:checked={shortenUrl} class="form-checkbox" />
+			<span class="ml-2"
+				>Shorten URL (<a
+					href="https://en.wikipedia.org/wiki/Link_rot"
+					class="text-blue-500 hover:underline">Not recommended</a
+				>)</span
+			>
+		</label>
 		<p id="status" class="mt-4 text-center">{status}</p>
 		{#if uploadProgress > 0 && uploadProgress < 100}
 			<progress value={uploadProgress} max="100" class="w-full"></progress>
