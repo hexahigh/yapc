@@ -4,6 +4,7 @@
 	import prettyBytes from 'pretty-bytes';
 	import axios from 'axios';
 	import autoAnimate from '@formkit/auto-animate';
+	import { darkMode } from '$lib/dark.js';
 
 	let files = [];
 	let status = 'Ready to upload :)';
@@ -23,6 +24,8 @@
 	let uploadProgress = 0;
 	let errorMessage = '';
 	let shortenUrl = false;
+
+	$: logoSrc = $darkMode ? '/img/logo-dark.svg' : '/img/logo.svg';
 
 	async function getStats() {
 		const response = await fetch(`${ep}/stats`);
@@ -162,14 +165,14 @@
 					>&#8203;</span
 				>
 				<div
-					class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+					class="inline-block align-bottom rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
 				>
-					<div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+					<div class="bg-base px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
 						<div class="sm:flex sm:items-start">
 							<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-								<h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Info</h3>
+								<h3 class="text-lg leading-6 font-medium" id="modal-title">Info</h3>
 								<div class="mt-2">
-									<p>{instanceInfo}</p>
+									<p class="text-base text-gray-500">{instanceInfo}</p>
 									<p class="text-base text-gray-500">Statistics:</p>
 									<p class="text-sm text-gray-500">Server version: {server_version}</p>
 									<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
@@ -180,7 +183,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+					<div class="bg-base px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
 						<button
 							type="button"
 							on:click={toggleInfo}
@@ -194,16 +197,16 @@
 		</div>
 	{/if}
 
-	<div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+	<div class="flex flex-col items-center justify-center min-h-screen">
 		<img
+			src={logoSrc}
+			alt="YAPC Logo"
 			class="w-64 h-64 pointer-events-none"
-			src="/img/logo.svg"
-			ondragstart="return false"
-			alt="YAPC logo"
+			ondragstart="return false;"
 		/>
-		<form on:submit={handleSubmit} class="p-6 mt-10 bg-white rounded shadow-md w-80">
+		<form on:submit={handleSubmit} class="p-6 mt-10 rounded shadow-md shadow-white w-80">
 			<div class="flex flex-col">
-				<label for="file" class="mb-2 font-bold text-lg text-gray-900">Upload Files</label>
+				<label for="file" class="mb-2 font-bold text-lg">Upload Files</label>
 				<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
 			</div>
 			<button
@@ -259,7 +262,7 @@
 		<button on:click={toggleInfo} class="py-2 px-4 rounded hover:underline"> Info </button>
 		<div class="flex justify-center">
 			<p class="py-2 px-4">Endpoint:</p>
-			<select bind:value={ep} class="py-2 px-4 rounded hover:underline">
+			<select bind:value={ep} class="py-2 px-4 rounded hover:underline text-white bg-slate-400">
 				<option value={endpoint} selected>Main instance</option>
 				<option value="https://tiny-cougar-22.telebit.io">Unlimited</option>
 				<option value="http://localhost:8080">Local</option>
