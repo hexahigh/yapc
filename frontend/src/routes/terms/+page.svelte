@@ -1,4 +1,4 @@
-<div class="max-w-none ml-11 mr-11 mt-5 mb-5">
+<div class="max-w-none ml-11 mr-11 mt-5 mb-5 min-h-screen">
 	<h1 class="text-3xl font-bold">YAPC Terms of Service</h1>
 
 	<h2 class="text-2xl font-bold mt-4">1. Acceptance of Terms</h2>
