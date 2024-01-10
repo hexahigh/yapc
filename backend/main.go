@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -25,8 +26,25 @@ var (
 	level    = flag.Int("l", 3, "Compression level")
 )
 
+var downloadSpeeds []float64
+
 func main() {
 	flag.Parse()
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				speed, err := testDownloadSpeed()
+				if err == nil {
+					downloadSpeeds = append(downloadSpeeds, speed)
+				}
+			}
+		}
+	}()
+
 	http.HandleFunc("/store", func(w http.ResponseWriter, r *http.Request) {
 		enableCors(&w)
 		if r.Method == "OPTIONS" {
@@ -174,31 +192,37 @@ func main() {
 			}
 			totalSize += info.Size()
 		}
-totalSpace, err := getTotalDiskSpace(*dataDir)
-     if err != nil {
-         http.Error(w, "Failed to get total disk space", http.StatusInternalServerError)
-         return
-     }
+		totalSpace, err := getTotalDiskSpace(*dataDir)
+		if err != nil {
+			http.Error(w, "Failed to get total disk space", http.StatusInternalServerError)
+			return
+		}
 
-     availableSpace, err := getAvailableDiskSpace(*dataDir)
-     if err != nil {
-         http.Error(w, "Failed to get available disk space", http.StatusInternalServerError)
-         return
-     }
+		availableSpace, err := getAvailableDiskSpace(*dataDir)
+		if err != nil {
+			http.Error(w, "Failed to get available disk space", http.StatusInternalServerError)
+			return
+		}
 
-     percentageUsed := float64(totalSize) / float64(totalSpace) * 100
+		percentageUsed := float64(totalSize) / float64(totalSpace) * 100
 
-     response := map[string]interface{}{
-         "totalFiles":          len(files),
-         "totalSize":           totalSize,
-         "totalSpace":          totalSpace,
-         "availableSpace":      availableSpace,
-         "percentageUsed":      percentageUsed,
-         "compression":         *compress,
-         "compression_level":   *level,
-         "version":             version,
-     }
+		var totalSpeed float64
+		for _, speed := range downloadSpeeds {
+			totalSpeed += speed
+		}
+		averageSpeed := totalSpeed / float64(len(downloadSpeeds))
 
+		response := map[string]interface{}{
+			"totalFiles":        len(files),
+			"totalSize":         totalSize,
+			"totalSpace":        totalSpace,
+			"availableSpace":    availableSpace,
+			"percentageUsed":    percentageUsed,
+			"compression":       *compress,
+			"compression_level": *level,
+			"version":           version,
+			"averageSpeed":      averageSpeed,
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -244,20 +268,37 @@ func onStart() {
 	}
 }
 
- func getTotalDiskSpace(path string) (uint64, error) {
-     var stat syscall.Statfs_t
-     err := syscall.Statfs(path, &stat)
-     if err != nil {
-         return 0, err
-     }
-     return stat.Blocks * uint64(stat.Bsize), nil
- }
-  func getAvailableDiskSpace(path string) (uint64, error) {
-      var stat syscall.Statfs_t
-      err := syscall.Statfs(path, &stat)
-      if err != nil {
-          return 0, err
-      }
-      return stat.Bavail * uint64(stat.Bsize), nil
-  }
+func getTotalDiskSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+	return stat.Blocks * uint64(stat.Bsize), nil
+}
+func getAvailableDiskSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+	return stat.Bavail * uint64(stat.Bsize), nil
+}
+func testDownloadSpeed() (float64, error) {
+	start := time.Now()
+	resp, err := http.Get("https://speed.080609.xyz/downloading")
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
 
+	n, err := io.Copy(io.Discard, resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	duration := time.Since(start).Seconds()
+	speed := float64(n) / duration // Speed in bytes per second
+
+	return speed, nil
+}

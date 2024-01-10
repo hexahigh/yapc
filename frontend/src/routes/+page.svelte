@@ -27,6 +27,7 @@
 	let freeSpace;
 	let totalSpace;
 	let percentageUsed;
+	let averageSpeed;
 
 	$: logoSrc = $darkMode ? '/img/logo-dark.svg' : '/img/logo.svg';
 
@@ -41,6 +42,7 @@
 		freeSpace = prettyBytes(data.availableSpace);
 		totalSpace = prettyBytes(data.totalSpace);
 		percentageUsed = data.percentageUsed ? parseFloat(data.percentageUsed).toFixed(2) : 'unknown';
+		averageSpeed = data.averageSpeed ? prettyBytes(data.averageSpeed) : 'unknown';
 	}
 
 	async function archive(url) {
@@ -181,6 +183,7 @@
 									<p class="text-base text-gray-500">{instanceInfo}</p>
 									<p class="text-base text-gray-500">Statistics:</p>
 									<p class="text-sm text-gray-500">Server version: {server_version}</p>
+									<p class="text-sm text-gray-500">Average server speed: {averageSpeed}</p>
 									<p class="text-sm text-gray-500">Total files: {totalFiles}</p>
 									<p class="text-sm text-gray-500">Total file size: {totalSize}</p>
 									<p class="text-sm text-gray-500">Free space: {freeSpace}</p>
