@@ -31,14 +31,17 @@ var downloadSpeeds []float64
 func main() {
 	flag.Parse()
 
-	// Perform an initial speed test on server start
+	fmt.Println("Starting")
+
+	onStart()
+
 	speed, err := testDownloadSpeed()
 	if err == nil {
 		downloadSpeeds = append(downloadSpeeds, speed)
 	}
 
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
 		for {
 			select {
@@ -50,6 +53,11 @@ func main() {
 			}
 		}
 	}()
+
+	fmt.Println("Started")
+	fmt.Println("Listening on port", *port)
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 
 	http.HandleFunc("/store", func(w http.ResponseWriter, r *http.Request) {
 		enableCors(&w)
@@ -239,11 +247,6 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
 	})
-	fmt.Println("Starting")
-	onStart()
-	fmt.Println("Started")
-	fmt.Println("Listening on port", *port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 
 func enableCors(w *http.ResponseWriter) {
