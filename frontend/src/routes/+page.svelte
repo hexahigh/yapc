@@ -15,6 +15,7 @@
 	let showInfo = false;
 	let uploadCount;
 	let ep = endpoint;
+	let doArchive;
 
 	let totalFiles;
 	let totalSize;
@@ -130,7 +131,10 @@
 					if (shortenUrl) {
 						link = await shortenLink(link);
 					}
-					archive(link);
+
+					if (doArchive) {
+						archive(link);
+					}
 					links = [...links, link];
 					filenames = [...filenames, filename];
 				} else {
@@ -233,6 +237,12 @@
 						href="https://en.wikipedia.org/wiki/Link_rot"
 						class="text-blue-500 hover:underline">Not recommended</a
 					>)</span
+				>
+			</label>
+			<label class="flex items-center mt-4">
+				<input type="checkbox" bind:checked={doArchive} class="form-checkbox" />
+				<span class="ml-2"
+					>Archive URL</span
 				>
 			</label>
 			<p id="status" class="mt-4 text-center">{status}</p>
