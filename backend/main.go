@@ -31,8 +31,14 @@ var downloadSpeeds []float64
 func main() {
 	flag.Parse()
 
+	// Perform an initial speed test on server start
+	speed, err := testDownloadSpeed()
+	if err == nil {
+		downloadSpeeds = append(downloadSpeeds, speed)
+	}
+
 	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
+		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
@@ -206,11 +212,16 @@ func main() {
 
 		percentageUsed := float64(totalSize) / float64(totalSpace) * 100
 
-		var totalSpeed float64
-		for _, speed := range downloadSpeeds {
-			totalSpeed += speed
+		var averageSpeed float64
+		if len(downloadSpeeds) > 0 {
+			var totalSpeed float64
+			for _, speed := range downloadSpeeds {
+				totalSpeed += speed
+			}
+			averageSpeed = totalSpeed / float64(len(downloadSpeeds))
+		} else {
+			averageSpeed = 0
 		}
-		averageSpeed := totalSpeed / float64(len(downloadSpeeds))
 
 		response := map[string]interface{}{
 			"totalFiles":        len(files),
