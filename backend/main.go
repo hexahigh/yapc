@@ -57,8 +57,6 @@ func main() {
 	fmt.Println("Started")
 	fmt.Println("Listening on port", *port)
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
-
 	http.HandleFunc("/store", func(w http.ResponseWriter, r *http.Request) {
 		enableCors(&w)
 		if r.Method == "OPTIONS" {
@@ -247,6 +245,8 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
 	})
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 
 func enableCors(w *http.ResponseWriter) {
