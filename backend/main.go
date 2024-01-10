@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -173,14 +174,31 @@ func main() {
 			}
 			totalSize += info.Size()
 		}
+totalSpace, err := getTotalDiskSpace(*dataDir)
+     if err != nil {
+         http.Error(w, "Failed to get total disk space", http.StatusInternalServerError)
+         return
+     }
 
-		response := map[string]interface{}{
-			"totalFiles":        len(files),
-			"totalSize":         totalSize,
-			"compression":       *compress,
-			"compression_level": *level,
-			"version":           version,
-		}
+     availableSpace, err := getAvailableDiskSpace(*dataDir)
+     if err != nil {
+         http.Error(w, "Failed to get available disk space", http.StatusInternalServerError)
+         return
+     }
+
+     percentageUsed := float64(totalSize) / float64(totalSpace) * 100
+
+     response := map[string]interface{}{
+         "totalFiles":          len(files),
+         "totalSize":           totalSize,
+         "totalSpace":          totalSpace,
+         "availableSpace":      availableSpace,
+         "percentageUsed":      percentageUsed,
+         "compression":         *compress,
+         "compression_level":   *level,
+         "version":             version,
+     }
+
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -225,3 +243,21 @@ func onStart() {
 		}
 	}
 }
+
+ func getTotalDiskSpace(path string) (uint64, error) {
+     var stat syscall.Statfs_t
+     err := syscall.Statfs(path, &stat)
+     if err != nil {
+         return 0, err
+     }
+     return stat.Blocks * uint64(stat.Bsize), nil
+ }
+  func getAvailableDiskSpace(path string) (uint64, error) {
+      var stat syscall.Statfs_t
+      err := syscall.Statfs(path, &stat)
+      if err != nil {
+          return 0, err
+      }
+      return stat.Bavail * uint64(stat.Bsize), nil
+  }
+
