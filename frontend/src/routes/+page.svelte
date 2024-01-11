@@ -223,8 +223,7 @@
 		<form on:submit={handleSubmit} class="p-6 mt-10 rounded shadow-md shadow-white w-80">
 			<div class="flex flex-col">
 				<label for="file" class="mb-2 font-bold text-lg">Upload Files</label>
-				<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
-			</div>
+				<input id="file" type="file" bind:files multiple required webkitdirectory class="p-2 border rounded-md" />			</div>
 			<button
 				type="submit"
 				class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded"
