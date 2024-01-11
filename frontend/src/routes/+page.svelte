@@ -15,7 +15,7 @@
 	let showInfo = false;
 	let uploadCount;
 	let ep = endpoint;
-	let doArchive;
+	let doArchive = true;
 
 	let totalFiles;
 	let totalSize;
