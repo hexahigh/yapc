@@ -15,7 +15,7 @@
 	let showInfo = false;
 	let uploadCount;
 	let ep = endpoint;
-	let doArchive = true;
+	let doArchive = false;
 
 	let totalFiles;
 	let totalSize;
@@ -238,12 +238,12 @@
 					>)</span
 				>
 			</label>
-			<label class="flex items-center mt-4">
+			<!--<label class="flex items-center mt-4">
 				<input type="checkbox" bind:checked={doArchive} class="form-checkbox" />
 				<span class="ml-2"
 					>Archive URL</span
 				>
-			</label>
+			</label>-->
 			<p id="status" class="mt-4 text-center">{status}</p>
 			{#if uploadProgress > 0 && uploadProgress < 100}
 				<progress value={uploadProgress} max="100" class="w-full rounded-md"></progress>
