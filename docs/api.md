@@ -24,3 +24,11 @@ Returns statistics about the server.
 ```
 curl http://localhost:8080/stats
 ```
+
+## /ping
+### GET
+pong.
+
+## /health
+### GET
+Returns the current unix time in nanoseconds.
