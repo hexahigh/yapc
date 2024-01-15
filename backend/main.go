@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 	"sync"
+	"math"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -36,7 +37,10 @@ func main() {
 
 	onStart()
 
-	speed, err := testDownloadSpeed()
+	speed, err := testDownloadSpeed(10, 5*time.Second)
+	if err != nil {
+		log.Fatalf("Error testing download speed: %v", err)
+	}
 	if err == nil {
 		downloadSpeeds = append(downloadSpeeds, speed)
 	}
