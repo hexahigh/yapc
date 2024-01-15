@@ -29,6 +29,7 @@ var (
 	port     = flag.Int("p", 8080, "Port to listen on")
 	compress = flag.Bool("c", false, "Enable compression")
 	level    = flag.Int("l", 3, "Compression level")
+	dbFile   = flag.String("db", "shortener.db", "SQLite database file to use for the url shortener")
 )
 
 var downloadSpeeds []float64
@@ -41,7 +42,7 @@ func main() {
 
 	// Initialize the SQLite database
 	var err error
-	db, err = sql.Open("sqlite3", "file:shortener.db?cache=shared&mode=rwc")
+	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -332,6 +333,13 @@ func main() {
 			return
 		}
 
+		// Increment the hits counter for the URL
+		_, err = db.Exec("UPDATE urls SET hits = hits + 1 WHERE id = ?", id)
+		if err != nil {
+			log.Printf("Failed to increment hits for URL with id %s: %v", id, err)
+			// Do not return here, continue to redirect the user
+		}
+
 		http.Redirect(w, r, url, http.StatusFound)
 	})
 
@@ -439,7 +447,8 @@ func initDB() {
 	// Create table if it does not exist
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
 		id TEXT PRIMARY KEY,
-		url TEXT NOT NULL
+		url TEXT NOT NULL,
+		hits INTEGER DEFAULT 0
 	)`)
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
