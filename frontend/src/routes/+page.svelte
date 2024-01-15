@@ -79,7 +79,7 @@
 			});
 
 			if (response.data.success) {
-				return response.text; // Return the shortened URL
+				return ep + '/u/' + response.data.id; // Return the shortened URL
 			} else {
 				console.error('Error shortening URL:', response.data);
 				return url; // Return the original URL if there's an error
