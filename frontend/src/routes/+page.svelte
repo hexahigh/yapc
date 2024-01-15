@@ -285,7 +285,7 @@
 			<p class="py-2 px-4">Endpoint:</p>
 			<select bind:value={ep} class="py-2 px-4 rounded hover:underline text-white bg-slate-400">
 				<option value={endpoint} selected>Main instance</option>
-				<option value="https://tiny-cougar-22.telebit.io">Unlimited</option>
+				<option value="http://35.217.17.244:9066">Unlimited (HTTP)</option>
 				<option value="http://localhost:8080">Local</option>
 			</select>
 		</div>
