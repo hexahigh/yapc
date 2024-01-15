@@ -71,15 +71,15 @@
 		};
 
 		try {
-			const response = await axios.post('https://api.waa.ai/v2/links', payload, {
+			const response = await axios.post('https://pomf2.080609.xyz/shorten', payload, {
 				headers: {
-					Authorization: 'API-Key f0f2631bbc885aa29Ec204086d9ac32f310Cadd4',
+					//Authorization: 'API-Key f0f2631bbc885aa29Ec204086d9ac32f310Cadd4',
 					'Content-Type': 'application/json'
 				}
 			});
 
 			if (response.data.success) {
-				return response.data.data.link; // Return the shortened URL
+				return response.text; // Return the shortened URL
 			} else {
 				console.error('Error shortening URL:', response.data);
 				return url; // Return the original URL if there's an error
