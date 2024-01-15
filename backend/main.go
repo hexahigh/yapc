@@ -8,13 +8,13 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
-	"sync"
-	"math"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -52,11 +52,11 @@ func main() {
 			select {
 			case <-ticker.C:
 				speed, err := testDownloadSpeed(10, 5*time.Second)
-if err != nil {
-	log.Fatalf("Error testing download speed: %v", err)
-}
+				if err != nil {
+					log.Fatalf("Error testing download speed: %v", err)
+				}
 				if err == nil {
-					downloadSpeeds = append(downloadSpeeds, speed)
+					downloadSpeeds = append(downloadSpeeds, speed) // This causes a tiny memory leak. Too bad!
 				}
 			}
 		}
