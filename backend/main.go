@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	"sync"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -46,7 +47,10 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				speed, err := testDownloadSpeed()
+				speed, err := testDownloadSpeed(10, 5*time.Second)
+if err != nil {
+	log.Fatalf("Error testing download speed: %v", err)
+}
 				if err == nil {
 					downloadSpeeds = append(downloadSpeeds, speed)
 				}
@@ -317,21 +321,50 @@ func getAvailableDiskSpace(path string) (uint64, error) {
 	}
 	return stat.Bavail * uint64(stat.Bsize), nil
 }
-func testDownloadSpeed() (float64, error) {
-	start := time.Now()
-	resp, err := http.Get("https://speed.080609.xyz/downloading")
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
+func testDownloadSpeed(concurrentConnections int, testDuration time.Duration) (float64, error) {
+	var totalBytes int64
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	errChan := make(chan error, concurrentConnections)
 
-	n, err := io.Copy(io.Discard, resp.Body)
-	if err != nil {
-		return 0, err
+	start := time.Now()
+	for i := 0; i < concurrentConnections; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := http.Get("https://speed.080609.xyz/downloading")
+			if err != nil {
+				errChan <- err
+				return
+			}
+			defer resp.Body.Close()
+
+			n, err := io.CopyN(io.Discard, resp.Body, math.MaxInt64)
+			if err != nil && err != io.EOF {
+				errChan <- err
+				return
+			}
+
+			mu.Lock()
+			totalBytes += n
+			mu.Unlock()
+		}()
+	}
+
+	// Wait for the specified test duration and then stop the test
+	time.Sleep(testDuration)
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	duration := time.Since(start).Seconds()
-	speed := float64(n) / duration // Speed in bytes per second
+	speed := float64(totalBytes) / duration // Speed in bytes per second
 
 	return speed, nil
 }
