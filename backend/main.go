@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -29,11 +32,19 @@ var (
 )
 
 var downloadSpeeds []float64
+var db *sql.DB
 
 func main() {
 	flag.Parse()
 
 	fmt.Println("Starting")
+
+	// Initialize the SQLite database
+	var err error
+	db, err = sql.Open("sqlite3", "file:shortener.db?cache=shared&mode=rwc")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	onStart()
 
@@ -273,6 +284,57 @@ func main() {
 		w.Write([]byte(fmt.Sprintf("%d", t)))
 	})
 
+	http.HandleFunc("/shorten", func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+		if r.Method == "OPTIONS" {
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var request struct {
+			URL string `json:"url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		hasher := crc32.NewIEEE()
+		hasher.Write([]byte(request.URL))
+		id := fmt.Sprintf("%x", hasher.Sum32())
+
+		_, err := db.Exec("INSERT INTO urls (id, url) VALUES (?, ?)", id, request.URL)
+		if err != nil {
+			http.Error(w, "Failed to store URL", http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]string{"id": id}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+
+	http.HandleFunc("/u/", func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+		id := r.URL.Path[len("/u/"):]
+
+		var url string
+		err := db.QueryRow("SELECT url FROM urls WHERE id = ?", id).Scan(&url)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.NotFound(w, r)
+			} else {
+				http.Error(w, "Failed to retrieve URL", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		http.Redirect(w, r, url, http.StatusFound)
+	})
+
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 
@@ -307,6 +369,7 @@ func onStart() {
 			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
 		}
 	}
+	initDB()
 }
 
 func getTotalDiskSpace(path string) (uint64, error) {
@@ -371,4 +434,14 @@ func testDownloadSpeed(concurrentConnections int, testDuration time.Duration) (f
 	speed := float64(totalBytes) / duration // Speed in bytes per second
 
 	return speed, nil
+}
+func initDB() {
+	// Create table if it does not exist
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
+		id TEXT PRIMARY KEY,
+		url TEXT NOT NULL
+	)`)
+	if err != nil {
+		log.Fatalf("Failed to create table: %v", err)
+	}
 }
