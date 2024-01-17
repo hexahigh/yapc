@@ -29,7 +29,7 @@ var (
 	port     = flag.Int("p", 8080, "Port to listen on")
 	compress = flag.Bool("c", false, "Enable compression")
 	level    = flag.Int("l", 3, "Compression level")
-	dbFile   = flag.String("db", "shortener.db", "SQLite database file to use for the url shortener")
+	dbFile   = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
 )
 
 var downloadSpeeds []float64
