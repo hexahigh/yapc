@@ -78,7 +78,7 @@
 				}
 			});
 
-			if (response.data.success) {
+			if (response.data.id) {
 				return ep + '/u/' + response.data.id; // Return the shortened URL
 			} else {
 				console.error('Error shortening URL:', response.data);
