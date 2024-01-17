@@ -22,7 +22,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "1.3.0"
+const version = "1.3.1"
 
 var (
 	dataDir  = flag.String("d", "./data", "Folder to store files")
@@ -41,8 +41,7 @@ func main() {
 	fmt.Println("Starting")
 
 	// Initialize the SQLite database
-	var err error
-	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,9 +52,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error testing download speed: %v", err)
 	}
-	if err == nil {
-		downloadSpeeds = append(downloadSpeeds, speed)
-	}
+	downloadSpeeds = append(downloadSpeeds, speed)
 
 	go func() {
 		ticker := time.NewTicker(10 * time.Minute)
