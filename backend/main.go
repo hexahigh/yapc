@@ -30,7 +30,7 @@ var (
 	port     = flag.Int("p", 8080, "Port to listen on")
 	compress = flag.Bool("c", false, "Enable compression")
 	level    = flag.Int("l", 3, "Compression level")
-	dbFile   = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
+	dbFile   = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener (Disabled due to issue #1)")
 )
 
 var downloadSpeeds []float64
@@ -42,7 +42,7 @@ func main() {
 	fmt.Println("Starting")
 
 	// Initialize the SQLite database
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
+	db, err := sql.Open("sqlite3", "file:shortener.db?cache=shared&mode=rwc")
 	if err != nil {
 		log.Fatal(err)
 	}
