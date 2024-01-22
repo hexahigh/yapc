@@ -42,11 +42,12 @@ func main() {
 	fmt.Println("Starting")
 
 	// Initialize the SQLite database
-	db, err := sql.Open("sqlite3", "file:shortener.db?cache=shared&mode=rwc")
+	var err error
+	db, err = sql.Open("sqlite3", "file:shortener.db?cache=shared&mode=rwc")
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	initDB()
 	onStart()
 
 	speed, err := testDownloadSpeed(10, 5*time.Second)
@@ -413,11 +414,11 @@ func main() {
 		}
 
 		// Increment the hits counter for the URL
-		_, err = db.Exec("UPDATE urls SET hits = hits + 1 WHERE id = ?", id)
+		/*_, err = db.Exec("UPDATE urls SET hits = hits + 1 WHERE id = ?", id)
 		if err != nil {
 			log.Printf("Failed to increment hits for URL with id %s: %v", id, err)
 			// Do not return here, continue to redirect the user
-		}
+		}*/
 
 		http.Redirect(w, r, url, http.StatusFound)
 	})
@@ -456,7 +457,6 @@ func onStart() {
 			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
 		}
 	}
-	initDB()
 }
 
 func getTotalDiskSpace(path string) (uint64, error) {
@@ -526,8 +526,7 @@ func initDB() {
 	// Create table if it does not exist
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
 		id TEXT PRIMARY KEY,
-		url TEXT NOT NULL,
-		hits INTEGER DEFAULT 0
+		url TEXT NOT NULL
 	)`)
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
