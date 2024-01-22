@@ -132,7 +132,7 @@
 					if (!direct) {
 						link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
 					} else {
-						link = encodeURI(`${ep}/f?h=${hash}&e=${ext}&f=${filename}`);
+						link = encodeURI(`${ep}/get2?h=${hash}&e=${ext}&f=${filename}`);
 					}
 					if (shortenUrl) {
 						link = await shortenLink(link);
