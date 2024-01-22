@@ -32,3 +32,19 @@ pong.
 ## /health
 ### GET
 Returns the current unix time in nanoseconds.
+
+## /shorten
+### POST
+Shortens a given URL.
+#### Curl example:
+```
+curl -X POST -H "Content-Type: application/json" -d '{"url":"http://example.com"}' http://localhost:8080/shorten
+```
+
+## /u/
+### GET
+Redirects to the original URL based on the shortened ID.
+#### Curl example:
+```
+curl http://localhost:8080/u/00000000000
+```
