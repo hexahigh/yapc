@@ -389,7 +389,24 @@ func main() {
 		hasher.Write([]byte(request.URL))
 		id := fmt.Sprintf("%x", hasher.Sum32())
 
-		_, err := db.Exec("INSERT INTO urls (id, url) VALUES (?, ?)", id, request.URL)
+		// Check if the URL is already in the database
+		var existingID string
+		err := db.QueryRow("SELECT id FROM urls WHERE url = ?", request.URL).Scan(&existingID)
+		if err != nil && err != sql.ErrNoRows {
+			http.Error(w, "Failed to check URL", http.StatusInternalServerError)
+			return
+		}
+
+		if existingID != "" {
+			// URL is already in the database, return the existing ID
+			response := map[string]string{"id": existingID}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		// URL is not in the database, insert it
+		_, err = db.Exec("INSERT INTO urls (id, url) VALUES (?, ?)", id, request.URL)
 		if err != nil {
 			http.Error(w, "Failed to store URL", http.StatusInternalServerError)
 			return
