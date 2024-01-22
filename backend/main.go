@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log"
 	"math"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,7 +23,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "1.3.0"
+const version = "1.3.2"
 
 var (
 	dataDir  = flag.String("d", "./data", "Folder to store files")
@@ -176,6 +177,87 @@ func main() {
 			return
 		}
 		defer file.Close()
+
+		if *compress {
+			decoder, err := zstd.NewReader(file)
+			if err != nil {
+				http.Error(w, "Failed to create decoder", http.StatusInternalServerError)
+				return
+			}
+			defer decoder.Close()
+
+			_, err = io.Copy(w, decoder.IOReadCloser())
+			if err != nil {
+				http.Error(w, "Failed to send file", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			_, err = io.Copy(w, file)
+			if err != nil {
+				http.Error(w, "Failed to send file", http.StatusInternalServerError)
+				return
+			}
+		}
+	})
+
+	http.HandleFunc("/get2/", func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+		if r.Method == "OPTIONS" {
+			return
+		}
+
+		// Parse the query parameters
+		params := r.URL.Query()
+		hash := params.Get("h")
+		ext := params.Get("e")
+		filename := params.Get("f")
+
+		// If no hash is provided, default to '0'
+		if hash == "" {
+			hash = "0"
+		}
+
+		// If no extension is provided, default to 'bin'
+		if ext == "" {
+			ext = "bin"
+		}
+
+		// If no filename is provided, default to 'file.bin'
+		if filename == "" {
+			filename = "file.bin"
+		}
+
+		// Construct the filename
+		filename = filepath.Join(*dataDir, hash)
+		if *compress {
+			filename += ".zst"
+		}
+
+		fmt.Println("GET", r.URL.Path)
+		fmt.Println("Attempting to get", filename)
+
+		_, err := os.Stat(filename)
+		if os.IsNotExist(err) {
+			http.NotFound(w, r)
+			return
+		}
+
+		file, err := os.Open(filename)
+		if err != nil {
+			http.Error(w, "Failed to open file", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		// Set the content type based on the file extension
+		contentType := mime.TypeByExtension(ext)
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", contentType)
+
+		// Set the content disposition to attachment with the provided filename
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 
 		if *compress {
 			decoder, err := zstd.NewReader(file)

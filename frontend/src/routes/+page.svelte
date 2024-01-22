@@ -16,6 +16,7 @@
 	let uploadCount;
 	let ep = endpoint;
 	let doArchive = false;
+	let direct = true;
 
 	let totalFiles;
 	let totalSize;
@@ -127,7 +128,12 @@
 					let hash = response.data;
 					uploadCount++;
 					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
-					let link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
+					let link;
+					if (!direct) {
+						link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
+					} else {
+						link = encodeURI(`${ep}/f?h=${hash}&e=${ext}&f=${filename}`);
+					}
 					if (shortenUrl) {
 						link = await shortenLink(link);
 					}
@@ -238,12 +244,12 @@
 					>)</span
 				>
 			</label>
-			<!--<label class="flex items-center mt-4">
-				<input type="checkbox" bind:checked={doArchive} class="form-checkbox" />
+			<label class="flex items-center mt-4">
+				<input type="checkbox" bind:checked={direct} class="form-checkbox" />
 				<span class="ml-2"
-					>Archive URL</span
+					>Direct download</span
 				>
-			</label>-->
+			</label>
 			<p id="status" class="mt-4 text-center">{status}</p>
 			{#if uploadProgress > 0 && uploadProgress < 100}
 				<progress value={uploadProgress} max="100" class="w-full rounded-md"></progress>
