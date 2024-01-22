@@ -204,11 +204,13 @@ func main() {
 			return
 		}
 
+		var filename string
+
 		// Parse the query parameters
 		params := r.URL.Query()
 		hash := params.Get("h")
 		ext := params.Get("e")
-		filename := params.Get("f")
+		filenameDown := params.Get("f")
 
 		// If no hash is provided, default to '0'
 		if hash == "" {
@@ -221,8 +223,8 @@ func main() {
 		}
 
 		// If no filename is provided, default to 'file.bin'
-		if filename == "" {
-			filename = "file.bin"
+		if filenameDown == "" {
+			filenameDown = "file.bin"
 		}
 
 		// Construct the filename
@@ -255,7 +257,7 @@ func main() {
 		w.Header().Set("Content-Type", contentType)
 
 		// Set the content disposition to attachment with the provided filename
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filenameDown))
 
 		if *compress {
 			decoder, err := zstd.NewReader(file)
