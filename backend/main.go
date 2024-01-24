@@ -23,14 +23,16 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "1.3.2"
+const version = "1.3.3"
 
 var (
-	dataDir  = flag.String("d", "./data", "Folder to store files")
-	port     = flag.Int("p", 8080, "Port to listen on")
-	compress = flag.Bool("c", false, "Enable compression")
-	level    = flag.Int("l", 3, "Compression level")
-	dbFile   = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
+	dataDir     = flag.String("d", "./data", "Folder to store files")
+	port        = flag.Int("p", 8080, "Port to listen on")
+	compress    = flag.Bool("c", false, "Enable compression")
+	level       = flag.Int("l", 3, "Compression level")
+	dbFile      = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
+	noSpeedtest = flag.Bool("disable-speedtest", false, "Disable speedtest")
+	logging     = flag.Bool("l", false, "Enable logging")
 )
 
 var downloadSpeeds []float64
@@ -45,6 +47,15 @@ func init() {
 		case "default":
 			break
 		}
+	}
+
+	if *logging {
+		logFile, err := os.OpenFile("log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.SetOutput(logFile)
 	}
 }
 
@@ -505,6 +516,11 @@ func getAvailableDiskSpace(path string) (uint64, error) {
 	return stat.Bavail * uint64(stat.Bsize), nil
 }
 func testDownloadSpeed(concurrentConnections int, testDuration time.Duration) (float64, error) {
+
+	if *noSpeedtest {
+		return 0, nil
+	}
+
 	var totalBytes int64
 	var wg sync.WaitGroup
 	var mu sync.Mutex
