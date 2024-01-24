@@ -32,7 +32,7 @@ var (
 	level       = flag.Int("l", 3, "Compression level")
 	dbFile      = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
 	noSpeedtest = flag.Bool("disable-speedtest", false, "Disable speedtest")
-	logging     = flag.Bool("l", false, "Enable logging")
+	logging     = flag.Bool("log", false, "Enable logging")
 )
 
 var downloadSpeeds []float64
@@ -40,10 +40,22 @@ var db *sql.DB
 
 func init() {
 	// Subcommands
+	reportCommand := flag.NewFlagSet("report", flag.ExitOnError)
+	reportCommand_outFile := reportCommand.String("o", "report.json", "Output file")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+		fmt.Println("Subcommands:")
+		fmt.Println("report")
+	}
 
 	flag.Parse()
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "report":
+			report(*reportCommand_outFile)
+			os.Exit(0)
 		case "default":
 			break
 		}
