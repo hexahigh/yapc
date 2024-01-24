@@ -10,10 +10,10 @@ import (
 )
 
 type SystemReport struct {
-	CPUInfo      map[string]string `json:"cpu_info"`
-	OS           map[string]string `json:"os"`
-	MEMInfo      map[string]string `json:"mem_info"`
-	Session_type string            `json:"session_type"`
+	CPUInfo map[string]string `json:"cpu_info"`
+	OS      map[string]string `json:"os"`
+	MEMInfo map[string]string `json:"mem_info"`
+	Env     map[string]string `json:"environment_variables"`
 }
 
 func report(out_file string) {
@@ -94,15 +94,23 @@ func report(out_file string) {
 		return
 	}
 
-	// Get wayland/xorg
-	session_type_env := os.Getenv("XDG_SESSION_TYPE")
+	// Get env
+	envMap := make(map[string]string)
+	for _, envVar := range os.Environ() {
+		parts := strings.SplitN(envVar, "=", 2)
+		if len(parts) == 2 {
+			key := parts[0]
+			val := parts[1]
+			envMap[key] = val
+		}
+	}
 
 	// Create a new system report
 	report := &SystemReport{
-		CPUInfo:      cpuMap,
-		OS:           osMap,
-		MEMInfo:      memMap,
-		Session_type: session_type_env,
+		CPUInfo: cpuMap,
+		OS:      osMap,
+		MEMInfo: memMap,
+		Env:     envMap,
 	}
 
 	// Marshal the report to JSON
