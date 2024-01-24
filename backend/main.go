@@ -69,8 +69,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	initDB()
 	onStart()
+	initDB()
 
 	speed, err := testDownloadSpeed(10, 5*time.Second)
 	if err != nil {
