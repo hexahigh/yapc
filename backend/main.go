@@ -38,22 +38,10 @@ var db *sql.DB
 
 func init() {
 	// Subcommands
-	dbExportCommand := flag.NewFlagSet("db-export", flag.ExitOnError)
-	db_export_file := dbExportCommand.String("db", "./data/shortener.db", "SQLite database file to use")
-	db_export_output := dbExportCommand.String("o", "db-export.json", "Output file")
-
-	dbImportCommand := flag.NewFlagSet("db-import", flag.ExitOnError)
-	dbImportFile := dbImportCommand.String("i", "", "JSON file to import into the SQLite database")
 
 	flag.Parse()
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "db-export":
-			dbExport(*db_export_file, *db_export_output)
-			os.Exit(0)
-		case "db-import":
-			dbImport(*dbImportFile)
-			os.Exit(0)
 		case "default":
 			break
 		}
@@ -572,89 +560,4 @@ func initDB() {
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
 	}
-}
-
-func dbExport(dbFile string, outputFile string) {
-	db, err := sql.Open("sqlite3", dbFile)
-	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
-	}
-	defer db.Close()
-
-	rows, err := db.Query("SELECT id, url FROM urls")
-	if err != nil {
-		log.Fatalf("Failed to query database: %v", err)
-	}
-	defer rows.Close()
-
-	var data []map[string]string
-	for rows.Next() {
-		var id string
-		var url string
-		if err := rows.Scan(&id, &url); err != nil {
-			log.Fatalf("Failed to scan row: %v", err)
-		}
-		data = append(data, map[string]string{"id": id, "url": url})
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Fatalf("Failed to iterate over rows: %v", err)
-	}
-
-	file, err := os.Create(outputFile)
-	if err != nil {
-		log.Fatalf("Failed to create output file: %v", err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(data); err != nil {
-		log.Fatalf("Failed to encode data: %v", err)
-	}
-
-	fmt.Printf("Exported %d rows to %s\n", len(data), outputFile)
-}
-
-func dbImport(inputFile string) {
-	db, err := sql.Open("sqlite3", *dbFile)
-	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
-	}
-	defer db.Close()
-
-	file, err := os.Open(inputFile)
-	if err != nil {
-		log.Fatalf("Failed to open input file: %v", err)
-	}
-	defer file.Close()
-
-	var data []DBData
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&data); err != nil {
-		log.Fatalf("Failed to decode data: %v", err)
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatalf("Failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback()
-
-	stmt, err := tx.Prepare("INSERT INTO urls (id, url) VALUES (?, ?)")
-	if err != nil {
-		log.Fatalf("Failed to prepare statement: %v", err)
-	}
-	defer stmt.Close()
-
-	for _, item := range data {
-		if _, err := stmt.Exec(item.ID, item.URL); err != nil {
-			log.Fatalf("Failed to execute statement: %v", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		log.Fatalf("Failed to commit transaction: %v", err)
-	}
-
-	fmt.Printf("Imported %d rows from %s\n", len(data), inputFile)
 }
