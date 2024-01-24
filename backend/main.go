@@ -42,6 +42,7 @@ func init() {
 	// Subcommands
 	reportCommand := flag.NewFlagSet("report", flag.ExitOnError)
 	reportCommand_outFile := reportCommand.String("o", "report.json", "Output file")
+	reportCommand_stdout := reportCommand.Bool("stdout", false, "Output to stdout instead of a file")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
@@ -54,7 +55,7 @@ func init() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "report":
-			report(*reportCommand_outFile)
+			report(*reportCommand_outFile, *reportCommand_stdout)
 			os.Exit(0)
 		case "default":
 			break

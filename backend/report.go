@@ -16,9 +16,7 @@ type SystemReport struct {
 	Env     map[string]string `json:"environment_variables"`
 }
 
-func report(out_file string) {
-	fmt.Println("Starting system report")
-
+func report(out_file string, stdout bool) {
 	// Get CPU Info
 	cpuInfo, err := os.Open("/proc/cpuinfo")
 	if err != nil {
@@ -120,12 +118,17 @@ func report(out_file string) {
 		return
 	}
 
-	// Write the JSON data to the output file
-	err = os.WriteFile(out_file, jsonData, fs.ModePerm)
-	if err != nil {
-		fmt.Println("Error writing report to file:", err)
+	if stdout {
+		fmt.Print(string(jsonData))
 		return
-	}
+	} else {
+		// Write the JSON data to the output file
+		err = os.WriteFile(out_file, jsonData, fs.ModePerm)
+		if err != nil {
+			fmt.Println("Error writing report to file:", err)
+			return
+		}
 
-	fmt.Println("System report completed.")
+		fmt.Println("System report completed.")
+	}
 }
