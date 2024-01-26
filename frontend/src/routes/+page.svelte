@@ -1,5 +1,5 @@
 <script>
-	import { endpoint, instanceInfo } from '$lib/conf.js';
+	import { endpoint, instanceInfo, endpointList } from '$lib/conf.js';
 	import { onMount } from 'svelte';
 	import prettyBytes from 'pretty-bytes';
 	import axios from 'axios';
@@ -229,7 +229,8 @@
 		<form on:submit={handleSubmit} class="p-6 mt-10 rounded shadow-md shadow-white w-80">
 			<div class="flex flex-col">
 				<label for="file" class="mb-2 font-bold text-lg">Upload Files</label>
-				<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />			</div>
+				<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
+			</div>
 			<button
 				type="submit"
 				class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded"
@@ -244,11 +245,9 @@
 					>)</span
 				>
 			</label>
-			<label class="flex items-center mt-4">
+			<label class="flex items-center mt-4" title="Download directly from the endpoint instead of using the proxy">
 				<input type="checkbox" bind:checked={direct} class="form-checkbox" />
-				<span class="ml-2"
-					>Direct download</span
-				>
+				<span class="ml-2">Direct download</span>
 			</label>
 			<p id="status" class="mt-4 text-center">{status}</p>
 			{#if uploadProgress > 0 && uploadProgress < 100}
@@ -291,8 +290,9 @@
 			<p class="py-2 px-4">Endpoint:</p>
 			<select bind:value={ep} class="py-2 px-4 rounded hover:underline text-white bg-slate-400">
 				<option value={endpoint} selected>Main instance</option>
-				<option value="http://35.217.17.244:9066">Unlimited (HTTP)</option>
-				<option value="http://localhost:8080">Local</option>
+				{#each Object.values(endpointList) as endpoint (endpoint.name)}
+					<option value={endpoint.url}>{endpoint.name}</option>
+				{/each}
 			</select>
 		</div>
 	</footer>
