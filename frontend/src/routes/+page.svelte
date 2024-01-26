@@ -190,7 +190,7 @@
 							<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
 								<h3 class="text-lg leading-6 font-medium" id="modal-title">Info</h3>
 								<div class="mt-2">
-									<p class="text-base text-gray-500">{instanceInfo}</p>
+									<p class="text-base text-gray-500">Max file size is 100MB <s>and files not accessed in the past 3 days might be slow to download.</s> All files are slow. This instance exists as a demo. It is slow and i don\'t recommend using it for anything important.</p>
 									<p class="text-base text-gray-500">Statistics:</p>
 									<p class="text-sm text-gray-500">Server version: {server_version}</p>
 									<p class="text-sm text-gray-500">Average server speed: {averageSpeed}</p>
