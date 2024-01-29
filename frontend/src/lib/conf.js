@@ -4,4 +4,8 @@ export const endpointList = { // list of endpoints displayed in the footer
         name: "Local (8080)",
         url: 'http://localhost:8080',
     },
+    2: {
+        name: "Unlimited",
+        url: 'https://tiny-cougar-22.telebit.io',
+    },
 }
