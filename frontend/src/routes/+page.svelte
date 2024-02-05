@@ -190,7 +190,12 @@
 							<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
 								<h3 class="text-lg leading-6 font-medium" id="modal-title">Info</h3>
 								<div class="mt-2">
-									<p class="text-base text-gray-500">Max file size is 100MB <s>and files not accessed in the past 3 days might be slow to download.</s> All files are slow. This instance exists as a demo. It is slow and i don\'t recommend using it for anything important.</p>
+									<p class="text-base text-gray-500">
+										Max file size is 100MB and files not accessed in the past 3 days might be slow
+										to download. However, you can use the unlimited endpoint to upload files larger
+										than 100MB, this endpoint is less reliable and your files go through a
+										third-party server which i do not control.
+									</p>
 									<p class="text-base text-gray-500">Statistics:</p>
 									<p class="text-sm text-gray-500">Server version: {server_version}</p>
 									<p class="text-sm text-gray-500">Average server speed: {averageSpeed}</p>
@@ -245,13 +250,23 @@
 					>)</span
 				>
 			</label>
-			<label class="flex items-center mt-4" title="Download directly from the endpoint instead of using the proxy">
+			<label
+				class="flex items-center mt-4"
+				title="Download directly from the endpoint instead of using the proxy"
+			>
 				<input type="checkbox" bind:checked={direct} class="form-checkbox" />
 				<span class="ml-2">Direct download</span>
 			</label>
 			<p id="status" class="mt-4 text-center">{status}</p>
 			{#if uploadProgress > 0 && uploadProgress < 100}
-				<progress value={uploadProgress} max="100" class="w-full rounded-md"></progress>
+				<div class="w-full bg-gray-200 rounded-full dark:bg-gray-700">
+					<div
+						class="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full"
+						style="width: {uploadProgress}%"
+					>
+						{uploadProgress}
+					</div>
+				</div>
 			{/if}
 			{#if errorMessage}
 				<p class="mt-4 text-center text-red-500">{errorMessage}</p>
