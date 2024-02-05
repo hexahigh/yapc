@@ -1,5 +1,5 @@
 <script>
-	import { endpoint, instanceInfo, endpointList } from '$lib/conf.js';
+	import { endpoint, endpointList } from '$lib/conf.js';
 	import { onMount } from 'svelte';
 	import prettyBytes from 'pretty-bytes';
 	import axios from 'axios';
@@ -16,7 +16,7 @@
 	let uploadCount;
 	let ep = endpoint;
 	let doArchive = false;
-	let direct = true;
+	let direct = false;
 
 	let totalFiles;
 	let totalSize;
@@ -130,7 +130,7 @@
 					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
 					let link;
 					if (!direct) {
-						link = encodeURI(`${currentDomain}/f?h=${hash}&e=${ext}&f=${filename}`);
+						link = encodeURI(`${currentDomain}/f2?h=${hash}&e=${ext}&f=${filename}`);
 					} else {
 						link = encodeURI(`${ep}/get2?h=${hash}&e=${ext}&f=${filename}`);
 					}
