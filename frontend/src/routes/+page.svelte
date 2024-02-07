@@ -72,7 +72,7 @@
 		};
 
 		try {
-			const response = await axios.post('https://pomf2.080609.xyz/shorten', payload, {
+			const response = await axios.post(`${ep}/shorten`, payload, {
 				headers: {
 					//Authorization: 'API-Key f0f2631bbc885aa29Ec204086d9ac32f310Cadd4',
 					'Content-Type': 'application/json'
