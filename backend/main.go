@@ -23,7 +23,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "1.3.3"
+const version = "1.3.4"
 
 var (
 	dataDir     = flag.String("d", "./data", "Folder to store files")
@@ -439,8 +439,8 @@ func main() {
 			return
 		}
 
-		// URL is not in the database, insert it
-		_, err = db.Exec("INSERT INTO urls (id, url) VALUES (?, ?)", id, request.URL)
+		// URL is not in the database, insert it with hits set to  0
+		_, err = db.Exec("INSERT INTO urls (id, url, hits) VALUES (?, ?,  1)", id, request.URL)
 		if err != nil {
 			http.Error(w, "Failed to store URL", http.StatusInternalServerError)
 			return
@@ -467,11 +467,10 @@ func main() {
 		}
 
 		// Increment the hits counter for the URL
-		/*_, err = db.Exec("UPDATE urls SET hits = hits + 1 WHERE id = ?", id)
+		_, err = db.Exec("UPDATE urls SET hits = hits + 1 WHERE id = ?", id)
 		if err != nil {
 			log.Printf("Failed to increment hits for URL with id %s: %v", id, err)
-			// Do not return here, continue to redirect the user
-		}*/
+		}
 
 		http.Redirect(w, r, url, http.StatusFound)
 	})
@@ -584,7 +583,8 @@ func initDB() {
 	// Create table if it does not exist
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
 		id TEXT PRIMARY KEY,
-		url TEXT NOT NULL
+		url TEXT NOT NULL,
+		hits INTEGER
 	)`)
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)

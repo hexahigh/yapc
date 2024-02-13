@@ -17,6 +17,7 @@ type SystemReport struct {
 }
 
 func report(out_file string, stdout bool) {
+	fmt.Println("The report tool has moved to github.com/hexahigh/boofutils")
 	// Get CPU Info
 	cpuInfo, err := os.Open("/proc/cpuinfo")
 	if err != nil {
