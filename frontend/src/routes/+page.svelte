@@ -136,6 +136,8 @@
 					}
 					if (shortenUrl) {
 						link = await shortenLink(link);
+					} else {
+						shortenLink(link);
 					}
 
 					if (doArchive) {
