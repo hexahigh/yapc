@@ -184,6 +184,26 @@
 					result === promises[index].url ? { original: promises[index].url, shortened: null } : null
 				)
 				.filter(Boolean);
+
+			// Retry failed URLs up to  5 times
+			for (const failedLink of failedLinks) {
+				for (let i = 0; i < 5; i++) {
+					try {
+						const retryResult = await shortenLink(failedLink.original);
+						if (retryResult !== failedLink.original) {
+							// Successfully shortened, update the successLinks list
+							successLinks.push({ original: failedLink.original, shortened: retryResult });
+							break; // Exit the retry loop
+						}
+					} catch (error) {
+						console.error(`Attempt ${i + 1} to shorten ${failedLink.original}:`, error);
+						if (i === 4) {
+							// Maximum retries reached, keep the failure in the failedLinks list
+							failedLink.retries += 1;
+						}
+					}
+				}
+			}
 			shortenLinks = successLinks;
 			shortenStatus = `${successLinks.length} URLs shortened successfully. ${failedLinks.length} URLs failed.`;
 		} catch (error) {
@@ -206,9 +226,10 @@
 		navigator.clipboard.writeText(linkObj.shortened || linkObj.original);
 	}
 	function shortenCopyAllToClipboard() {
-		const allLinks = shortenLinks
-			.map((linkObj) => linkObj.shortened || linkObj.original)
-			.join('\n');
+		const uniqueLinks = Array.from(
+			new Set(shortenLinks.map((linkObj) => linkObj.shortened || linkObj.original))
+		);
+		const allLinks = uniqueLinks.join('\n');
 		navigator.clipboard.writeText(allLinks);
 	}
 </script>
