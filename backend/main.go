@@ -37,6 +37,7 @@ var (
 
 var downloadSpeeds []float64
 var db *sql.DB
+var logger *log.Logger
 
 func init() {
 	flag.Parse()
@@ -51,6 +52,7 @@ func init() {
 }
 
 func main() {
+	logger = log.New(os.Stdout, "", log.LstdFlags)
 	fmt.Println("Starting")
 
 	// Initialize the SQLite database
@@ -231,7 +233,16 @@ func handleExists(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	_, err := os.Stat(request.ID)
+
+	cleanHash := filepath.Clean(request.ID)
+	if cleanHash != request.ID {
+		http.Error(w, "Invalid hash", http.StatusBadRequest)
+		logger.Println("An invalid hash was provided, perhaps someone tried to access files outside of the data folder." + request.ID)
+		return
+	}
+
+	file := filepath.Join(*dataDir, cleanHash)
+	_, err := os.Stat(file)
 	if err == nil {
 		response := map[string]interface{}{
 			"success": true,
@@ -332,6 +343,14 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hash := r.URL.Path[len("/get/"):]
+
+	cleanHash := filepath.Clean(hash)
+	if cleanHash != hash {
+		http.Error(w, "Invalid hash", http.StatusBadRequest)
+		logger.Println("An invalid hash was provided, perhaps someone tried to access files outside of the data folder." + hash)
+		return
+	}
+
 	filename := filepath.Join(*dataDir, hash)
 	if *compress {
 		filename += ".zst"
@@ -404,8 +423,15 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 		filenameDown = "file.bin"
 	}
 
+	cleanHash := filepath.Clean(hash)
+	if cleanHash != hash {
+		http.Error(w, "Invalid hash", http.StatusBadRequest)
+		logger.Println("An invalid hash was provided, perhaps someone tried to access files outside of the data folder." + hash)
+		return
+	}
+
 	// Construct the filename
-	filename = filepath.Join(*dataDir, hash)
+	filename = filepath.Join(*dataDir, cleanHash)
 	if *compress {
 		filename += ".zst"
 	}
