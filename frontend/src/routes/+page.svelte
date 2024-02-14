@@ -168,12 +168,14 @@
         shortenErrorMessage = '';
 
         const urls = linksInput.trim().split('\n');
-        const promises = urls.map(url => shortenLink(url));
+        const promises = urls.map(url => ({ url, promise: shortenLink(url) }));
 
         try {
-            const results = await Promise.all(promises);
-            shortenLinks = results.filter(Boolean); // Filter out any failed shortenings
-            shortenStatus = `${shortenLinks.length} URLs shortened successfully.`;
+            const results = await Promise.all(promises.map(({ promise }) => promise));
+            const successLinks = results.map((result, index) => result !== promises[index].url ? { original: promises[index].url, shortened: result } : null).filter(Boolean);
+            const failedLinks = results.map((result, index) => result === promises[index].url ? { original: promises[index].url, shortened: null } : null).filter(Boolean);
+            shortenLinks = successLinks;
+            shortenStatus = `${successLinks.length} URLs shortened successfully. ${failedLinks.length} URLs failed.`;
         } catch (error) {
             console.error('Error shortening URLs:', error);
             shortenErrorMessage = error.message;
@@ -189,13 +191,14 @@
 		navigator.clipboard.writeText(allLinks);
 	}
 
-	function shortenCopyToClipboard(index) {
-		navigator.clipboard.writeText(shortenLinks[index]);
-	}
-	function shortenCopyAllToClipboard() {
-		const allLinks = shortenLinks.join('\n');
-		navigator.clipboard.writeText(allLinks);
-	}
+    function shortenCopyToClipboard(index) {
+        const linkObj = shortenLinks[index];
+        navigator.clipboard.writeText(linkObj.shortened || linkObj.original);
+    }
+    function shortenCopyAllToClipboard() {
+        const allLinks = shortenLinks.map(linkObj => linkObj.shortened || linkObj.original).join('\n');
+        navigator.clipboard.writeText(allLinks);
+    }
 </script>
 
 <div use:autoAnimate>
@@ -346,10 +349,15 @@
 			{/if}
 		</form>
 		<div use:autoAnimate class="mt-10 w-full">
-			{#each shortenLinks as link, index}
+			{#each shortenLinks as linkObj, index}
 				<div class="ml-11 grid grid-cols-3 gap-4 border-t-2 pt-4 px-4">
+					<span class="break-all col-span-1">{linkObj.original}</span>
 					<div class="break-all col-span-1">
-						<a href={link} class="text-blue-500 hover:underline">{link}</a>
+						{#if linkObj.shortened}
+							<a href={linkObj.shortened} class="text-blue-500 hover:underline">{linkObj.shortened}</a>
+						{:else}
+							<span class="text-red-500">Failed to shorten</span>
+						{/if}
 					</div>
 					<div class="col-span-1">
 						<button
