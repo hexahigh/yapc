@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -451,6 +452,16 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+
+	// Get the file size
+	fileInfo, err := os.Stat(filename)
+	if err != nil {
+		http.Error(w, "Failed to get file info", http.StatusInternalServerError)
+		return
+	}
+	fileSize := fileInfo.Size()
+
+	w.Header().Set("Content-Length", strconv.FormatInt(fileSize, 10))
 
 	// Set the content type based on the file extension
 	contentType := mime.TypeByExtension(ext)
