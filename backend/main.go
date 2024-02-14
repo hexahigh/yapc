@@ -23,7 +23,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "1.3.5"
+const version = "1.4.0"
 
 var (
 	dataDir     = flag.String("d", "./data", "Folder to store files")
