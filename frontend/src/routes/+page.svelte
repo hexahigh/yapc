@@ -18,6 +18,12 @@
 	let doArchive = false;
 	let direct = false;
 
+	let shortenLinks = [];
+	let linksInput = "";
+	let linksToShorten = [];
+	let shortenStatus = 'Ready to shorten :)';
+	let shortenErrorMessage;
+
 	let totalFiles;
 	let totalSize;
 	let compression;
@@ -155,6 +161,24 @@
 			}
 		}
 	}
+    async function handleShorten(event) {
+        event.preventDefault();
+        shortenLinks = [];
+        shortenStatus = 'Processing...';
+        shortenErrorMessage = '';
+
+        const urls = linksInput.trim().split('\n');
+        const promises = urls.map(url => shortenLink(url));
+
+        try {
+            const results = await Promise.all(promises);
+            shortenLinks = results.filter(Boolean); // Filter out any failed shortenings
+            shortenStatus = `${shortenLinks.length} URLs shortened successfully.`;
+        } catch (error) {
+            console.error('Error shortening URLs:', error);
+            shortenErrorMessage = error.message;
+        }
+    }
 
 	function copyToClipboard(index) {
 		navigator.clipboard.writeText(links[index]);
@@ -162,6 +186,14 @@
 
 	function copyAllToClipboard() {
 		const allLinks = links.join('\n');
+		navigator.clipboard.writeText(allLinks);
+	}
+
+	function shortenCopyToClipboard(index) {
+		navigator.clipboard.writeText(shortenLinks[index]);
+	}
+	function shortenCopyAllToClipboard() {
+		const allLinks = shortenLinks.join('\n');
 		navigator.clipboard.writeText(allLinks);
 	}
 </script>
@@ -298,6 +330,44 @@
 		>
 			Copy All Links
 		</button>
+		<form on:submit={handleShorten} class="p-6 mt-10 rounded shadow-md shadow-white w-80">
+			<div class="flex flex-col">
+				<label for="file" class="mb-2 font-bold text-lg">Shorten urls</label>
+				<textarea id="file" bind:value={linksInput} required class="p-2 border rounded-md" />
+			</div>
+			<button
+				type="submit"
+				class="w-full p-2 mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded"
+				>Shorten</button
+			>
+			<p id="status" class="mt-4 text-center">{shortenStatus}</p>
+			{#if shortenErrorMessage}
+				<p class="mt-4 text-center text-red-500">{shortenErrorMessage}</p>
+			{/if}
+		</form>
+		<div use:autoAnimate class="mt-10 w-full">
+			{#each shortenLinks as link, index}
+				<div class="ml-11 grid grid-cols-3 gap-4 border-t-2 pt-4 px-4">
+					<div class="break-all col-span-1">
+						<a href={link} class="text-blue-500 hover:underline">{link}</a>
+					</div>
+					<div class="col-span-1">
+						<button
+							on:click={() => shortenCopyToClipboard(index)}
+							type="button"
+							class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+							>Copy</button
+						>
+					</div>
+				</div>
+			{/each}
+		</div>
+		<button
+		on:click={shortenCopyAllToClipboard}
+		class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+	>
+		Copy All Shortened Links
+	</button>
 	</div>
 	<footer class="w-full text-center border-t border-grey p-4 pin-b">
 		<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
