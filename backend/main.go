@@ -15,30 +15,36 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
+	clamav "github.com/hexahigh/go-clamav"
 	"github.com/klauspost/compress/zstd"
 )
 
 const version = "1.4.0"
 
 var (
-	dataDir     = flag.String("d", "./data", "Folder to store files")
-	port        = flag.Int("p", 8080, "Port to listen on")
-	compress    = flag.Bool("c", false, "Enable compression")
-	level       = flag.Int("l", 3, "Compression level")
-	dbFile      = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
-	noSpeedtest = flag.Bool("disable-speedtest", false, "Disable speedtest")
-	logging     = flag.Bool("log", false, "Enable logging")
+	dataDir      = flag.String("d", "./data", "Folder to store files")
+	port         = flag.Int("p", 8080, "Port to listen on")
+	compress     = flag.Bool("c", false, "Enable compression")
+	level        = flag.Int("l", 3, "Compression level")
+	dbFile       = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
+	noSpeedtest  = flag.Bool("disable-speedtest", false, "Disable speedtest")
+	logging      = flag.Bool("log", false, "Enable logging")
+	useClamav    = flag.Bool("clamav", false, "Enable ClamAV")
+	clamavDb     = flag.String("clamav:db", "./clamav", "ClamAV database")
+	clavavDelete = flag.Bool("clamav:delete", false, "Delete files detected by ClamAV")
 )
 
 var downloadSpeeds []float64
 var db *sql.DB
 var logger *log.Logger
+var av *clamav.Clamav
 
 func init() {
 	flag.Parse()
@@ -53,6 +59,40 @@ func init() {
 }
 
 func main() {
+	if *useClamav {
+		av = new(clamav.Clamav)
+		err := av.Init(clamav.SCAN_OPTIONS{
+			General:   0,
+			Parse:     clamav.CL_SCAN_PARSE_ARCHIVE | clamav.CL_SCAN_PARSE_ELF,
+			Heuristic: 0,
+			Mail:      0,
+			Dev:       0,
+		})
+
+		if err != nil {
+			panic(err)
+		}
+
+		// free clamav memory
+		defer av.Free()
+
+		// load db
+		signo, err := av.LoadDB(*clamavDb, uint(clamav.CL_DB_DIRECTORY))
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("db load succeed:", signo)
+
+		// compile engine
+		err = av.CompileEngine()
+		if err != nil {
+			panic(err)
+		}
+
+		//av.EngineSetNum(clamav.CL_ENGINE_MAX_SCANSIZE, 1024*1024*40)
+		//av.EngineSetNum(clamav.CL_ENGINE_MAX_SCANTIME, 9000)
+	}
+
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	fmt.Println("Starting")
 
@@ -289,7 +329,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := fmt.Sprintf("%x", hasher.Sum32())
-	filename := *dataDir + "/" + hash
+	filename := filepath.Join(*dataDir, hash)
 	if *compress {
 		filename += ".zst"
 	}
@@ -331,6 +371,15 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		if _, err := io.Copy(newFile, file); err != nil {
 			http.Error(w, "Failed to save file", http.StatusInternalServerError)
 			return
+		}
+	}
+
+	if *useClamav {
+		_, name, err := av.ScanFile(filename)
+		if err != nil {
+			if strings.Contains(err.Error(), "Virus") {
+				logger.Println("Virus found in file: " + filename + "! Virus name: " + name)
+			}
 		}
 	}
 
