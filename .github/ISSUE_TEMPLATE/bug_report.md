@@ -10,4 +10,5 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
-**Please download github.com/hexahigh/boofutils, run "boofutils report -s -Y -pl -1" and share its output**
+**System Info**
+Operating system version, cpu architecture and program version is the most important. Hardware doesn't really matter.
