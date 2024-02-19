@@ -162,55 +162,46 @@
 		}
 	}
 	async function handleShorten(event) {
-		event.preventDefault();
-		shortenLinks = [];
-		shortenStatus = 'Processing...';
-		shortenErrorMessage = '';
+    event.preventDefault();
+    shortenLinks = [];
+    shortenStatus = 'Processing...';
+    shortenErrorMessage = '';
 
-		const urls = linksInput.trim().split('\n');
-		const promises = urls.map((url) => ({ url, promise: shortenLink(url) }));
+    const urls = linksInput.trim().split('\n');
+    const queue = urls.map((url) => ({ url, promise: shortenLink(url), retries:  0 }));
+    const maxConcurrent =   100;
+    let activeRequests =   0;
 
-		try {
-			const results = await Promise.all(promises.map(({ promise }) => promise));
-			const successLinks = results
-				.map((result, index) =>
-					result !== promises[index].url
-						? { original: promises[index].url, shortened: result }
-						: null
-				)
-				.filter(Boolean);
-			const failedLinks = results
-				.map((result, index) =>
-					result === promises[index].url ? { original: promises[index].url, shortened: null } : null
-				)
-				.filter(Boolean);
+    while (queue.length >   0) {
+        if (activeRequests < maxConcurrent) {
+            const { url, promise, retries } = queue.shift();
+            activeRequests++;
 
-			// Retry failed URLs up to  5 times
-			for (const failedLink of failedLinks) {
-				for (let i = 0; i < 5; i++) {
-					try {
-						const retryResult = await shortenLink(failedLink.original);
-						if (retryResult !== failedLink.original) {
-							// Successfully shortened, update the successLinks list
-							successLinks.push({ original: failedLink.original, shortened: retryResult });
-							break; // Exit the retry loop
-						}
-					} catch (error) {
-						console.error(`Attempt ${i + 1} to shorten ${failedLink.original}:`, error);
-						if (i === 4) {
-							// Maximum retries reached, keep the failure in the failedLinks list
-							failedLink.retries += 1;
-						}
-					}
-				}
-			}
-			shortenLinks = successLinks;
-			shortenStatus = `${successLinks.length} URLs shortened successfully. ${failedLinks.length} URLs failed.`;
-		} catch (error) {
-			console.error('Error shortening URLs:', error);
-			shortenErrorMessage = error.message;
-		}
-	}
+            try {
+                const result = await promise;
+                if (result !== url) {
+                    shortenLinks.push({ original: url, shortened: result });
+                } else {
+                    // If the result is the same as the original URL, retry up to  5 times
+                    if (retries <  5) {
+                        queue.push({ url, promise: shortenLink(url), retries: retries +  1 });
+                    } else {
+                        shortenLinks.push({ original: url, shortened: null });
+                    }
+                }
+            } catch (error) {
+                console.error('Error shortening URL:', error);
+                shortenLinks.push({ original: url, shortened: null });
+            } finally {
+                activeRequests--;
+            }
+        } else {
+            await new Promise(resolve => setTimeout(resolve,   1000)); // Wait for   1 second before checking again
+        }
+    }
+
+    shortenStatus = `${shortenLinks.filter(link => link.shortened).length} URLs shortened successfully. ${shortenLinks.filter(link => !link.shortened).length} URLs failed.`;
+}
 
 	function copyToClipboard(index) {
 		navigator.clipboard.writeText(links[index]);
