@@ -8,4 +8,8 @@ export const endpointList = { // list of endpoints displayed in the footer
         name: "Unlimited",
         url: 'https://tiny-cougar-22.telebit.io',
     },
+    3: {
+        name: "Zerotier",
+        url: 'http://10.0.0.5:9066',
+    },
 }
