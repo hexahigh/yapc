@@ -16,7 +16,8 @@
 	let uploadCount;
 	let ep = endpoint;
 	let doArchive = false;
-	let direct = false;
+	let direct = true;
+	let useS256 = false;
 
 	let shortenLinks = [];
 	let linksInput = '';
@@ -135,10 +136,12 @@
 					uploadCount++;
 					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
 					let link;
-					if (!direct) {
-						link = encodeURI(`${currentDomain}/f2?h=${hash}&e=${ext}&f=${filename}`);
+					if (useS256) {
+						// Use SHA256 hash
+						link = encodeURI(`${currentDomain}/f2?h=${hash.sha256}&e=${ext}&f=${filename}`);
 					} else {
-						link = encodeURI(`${ep}/get2?h=${hash}&e=${ext}&f=${filename}`);
+						// Use CRC32 hash
+						link = encodeURI(`${currentDomain}/f2?h=${hash.crc32}&e=${ext}&f=${filename}`);
 					}
 					if (shortenUrl) {
 						link = await shortenLink(link);
@@ -319,6 +322,10 @@
 						class="text-blue-500 hover:underline">Not recommended</a
 					>)</span
 				>
+			</label>
+			<label class="flex items-center mt-4" title="Use SHA256 instead of CRC32, this creates longer links but files are less prone to corruption">
+				<input type="checkbox" bind:checked={useS256} class="form-checkbox" />
+				<span class="ml-2">Use SHA256</span>
 			</label>
 			<label
 				class="flex items-center mt-4"

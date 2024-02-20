@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -24,15 +27,15 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "1.4.0"
+const version = "2.0.0"
 
 var (
 	dataDir     = flag.String("d", "./data", "Folder to store files")
 	port        = flag.Int("p", 8080, "Port to listen on")
 	compress    = flag.Bool("c", false, "Enable compression")
 	level       = flag.Int("l", 3, "Compression level")
-	dbFile      = flag.String("db", "./data/shortener.db", "SQLite database file to use for the url shortener")
-	noSpeedtest = flag.Bool("disable-speedtest", false, "Disable speedtest")
+	dbFile      = flag.String("db", "./data/yapc.db", "SQLite database file to use for the url shortener")
+	noSpeedtest = flag.Bool("disable-speedtest", true, "Disable speedtest")
 	logging     = flag.Bool("log", false, "Enable logging")
 )
 
@@ -215,6 +218,17 @@ func initDB() {
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
 	}
+	// Create data table
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS data (
+		id TEXT PRIMARY KEY,
+		sha256 TEXT NOT NULL,
+		sha1 TEXT NOT NULL,
+		md5 TEXT NOT NULL,
+		crc32 TEXT NOT NULL
+	)`)
+	if err != nil {
+		log.Fatalf("Failed to create table: %v", err)
+	}
 }
 
 func handleExists(w http.ResponseWriter, r *http.Request) {
@@ -282,23 +296,54 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	hasher := crc32.NewIEEE()
-	if _, err := io.Copy(hasher, file); err != nil {
-		http.Error(w, "Failed to hash file", http.StatusInternalServerError)
+	// Create a buffer to hold the file data
+	buf := new(bytes.Buffer)
+	if _, err := io.Copy(buf, file); err != nil {
+		http.Error(w, "Failed to read file", http.StatusInternalServerError)
 		return
 	}
 
-	hash := fmt.Sprintf("%x", hasher.Sum32())
-	filename := *dataDir + "/" + hash
+	// Create a wait group to wait for all hash computations to finish
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	hashes := make(map[string]string)
+
+	// Define a function to compute a hash and store it in the map
+	computeHash := func(hashFunc crypto.Hash, hashKey string) {
+		defer wg.Done()
+		hasher := hashFunc.New()
+		hasher.Write(buf.Bytes())
+		hash := hex.EncodeToString(hasher.Sum(nil))
+		mu.Lock()
+		hashes[hashKey] = hash
+		mu.Unlock()
+	}
+
+	// Compute SHA256, SHA1, MD5, and CRC32 hashes concurrently
+	wg.Add(3)
+	go computeHash(crypto.SHA256, "sha256")
+	go computeHash(crypto.SHA1, "sha1")
+	go computeHash(crypto.MD5, "md5")
+	wg.Wait()
+
+	// Compute CRC32 hash
+	crc32Hasher := crc32.NewIEEE()
+	crc32Hasher.Write(buf.Bytes())
+	hashes["crc32"] = fmt.Sprintf("%x", crc32Hasher.Sum32())
+
+	// Use SHA256 hash as the filename
+	filename := *dataDir + "/" + hashes["sha256"]
 	if *compress {
 		filename += ".zst"
 	}
 
-	// Check if file already exists and return 200 and hash
+	// Check if file already exists
 	_, err = os.Stat(filename)
 	if err == nil {
+		// File already exists, return the JSON object with all hashes
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(hash))
+		json.NewEncoder(w).Encode(hashes)
 		return
 	}
 
@@ -309,33 +354,25 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 	defer newFile.Close()
 
-	// Reset the file pointer to the beginning of the file
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		http.Error(w, "Failed to reset file pointer", http.StatusInternalServerError)
+	// Write the file data to the new file
+	if _, err := buf.WriteTo(newFile); err != nil {
+		http.Error(w, "Failed to save file", http.StatusInternalServerError)
 		return
 	}
 
-	if *compress {
-		encoder, err := zstd.NewWriter(newFile, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(*level)))
-		if err != nil {
-			http.Error(w, "Failed to create encoder", http.StatusInternalServerError)
-			return
-		}
-		defer encoder.Close()
-
-		if _, err := io.Copy(encoder, file); err != nil {
-			http.Error(w, "Failed to save file", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		if _, err := io.Copy(newFile, file); err != nil {
-			http.Error(w, "Failed to save file", http.StatusInternalServerError)
-			return
-		}
+	// Write the hashes to the "data" table in the database
+	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32) VALUES (?, ?, ?, ?, ?)`,
+		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"])
+	if err != nil {
+		http.Error(w, "Failed to store hashes in database", http.StatusInternalServerError)
+		return
 	}
 
+	// Set the content type to application/json
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(hash))
+
+	json.NewEncoder(w).Encode(hashes)
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
@@ -411,7 +448,8 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 
 	// If no hash is provided, default to '0'
 	if hash == "" {
-		hash = "0"
+		http.Error(w, "No hash provided", http.StatusBadRequest)
+		return
 	}
 
 	// If no extension is provided, default to 'bin'
@@ -424,15 +462,21 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 		filenameDown = "file.bin"
 	}
 
-	cleanHash := filepath.Clean(hash)
-	if cleanHash != hash {
-		http.Error(w, "Invalid hash", http.StatusBadRequest)
-		logger.Println("An invalid hash was provided, perhaps someone tried to access files outside of the data folder." + hash)
-		return
+	// Query the database for the SHA256 hash associated with the provided hash
+	var sha256Hash string
+	err := db.QueryRow("SELECT sha256 FROM data WHERE sha256 = ? OR sha1 = ? OR md5 = ? OR crc32 = ?", hash, hash, hash, hash).Scan(&sha256Hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		} else {
+			http.Error(w, "Failed to query database", http.StatusInternalServerError)
+			return
+		}
 	}
 
-	// Construct the filename
-	filename = filepath.Join(*dataDir, cleanHash)
+	// Construct the filename using the SHA256 hash
+	filename = filepath.Join(*dataDir, sha256Hash)
 	if *compress {
 		filename += ".zst"
 	}
@@ -440,7 +484,7 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("GET", r.URL.Path)
 	fmt.Println("Attempting to get", filename)
 
-	_, err := os.Stat(filename)
+	_, err = os.Stat(filename)
 	if os.IsNotExist(err) {
 		http.NotFound(w, r)
 		return
