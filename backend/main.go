@@ -224,7 +224,8 @@ func initDB() {
 		sha256 TEXT NOT NULL,
 		sha1 TEXT NOT NULL,
 		md5 TEXT NOT NULL,
-		crc32 TEXT NOT NULL
+		crc32 TEXT NOT NULL,
+		uploaded INTEGER NOT NULL
 	)`)
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
@@ -360,9 +361,9 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write the hashes to the "data" table in the database
-	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32) VALUES (?, ?, ?, ?, ?)`,
-		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"])
+	// Write the hashes and the current Unix time to the "data" table in the database
+	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, uploaded) VALUES (?, ?, ?, ?, ?, ?)`,
+		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], time.Now().Unix())
 	if err != nil {
 		http.Error(w, "Failed to store hashes in database", http.StatusInternalServerError)
 		return
