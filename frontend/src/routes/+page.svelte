@@ -136,18 +136,30 @@
 					uploadCount++;
 					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
 					let link;
-					if (useS256) {
-						// Use SHA256 hash
-						link = encodeURI(`${currentDomain}/f2?h=${hash.sha256}&e=${ext}&f=${filename}`);
+					
+					if (!direct) {
+						if (useS256) {
+							// Use SHA256 hash
+							link = encodeURI(`${currentDomain}/f2?h=${hash.sha256}&e=${ext}&f=${filename}`);
+						} else {
+							// Use CRC32 hash
+							link = encodeURI(`${currentDomain}/f2?h=${hash.crc32}&e=${ext}&f=${filename}`);
+						}
 					} else {
-						// Use CRC32 hash
-						link = encodeURI(`${currentDomain}/f2?h=${hash.crc32}&e=${ext}&f=${filename}`);
+						if (useS256) {
+							// Use SHA256 hash
+							link = encodeURI(`${ep}/get2?h=${hash.sha256}&e=${ext}&f=${filename}`);
+						} else {
+							// Use CRC32 hash
+							link = encodeURI(`${ep}/get2?h=${hash.crc32}&e=${ext}&f=${filename}`);
+						}
 					}
+
 					if (shortenUrl) {
-						link = await shortenLink(link);
-					} else {
-						shortenLink(link);
-					}
+							link = await shortenLink(link);
+						} else {
+							shortenLink(link);
+						}
 
 					if (doArchive) {
 						archive(link);
@@ -323,7 +335,10 @@
 					>)</span
 				>
 			</label>
-			<label class="flex items-center mt-4" title="Use SHA256 instead of CRC32, this creates longer links but files are less prone to corruption">
+			<label
+				class="flex items-center mt-4"
+				title="Use SHA256 instead of CRC32, this creates longer links but files are less prone to corruption"
+			>
 				<input type="checkbox" bind:checked={useS256} class="form-checkbox" />
 				<span class="ml-2">Use SHA256</span>
 			</label>
