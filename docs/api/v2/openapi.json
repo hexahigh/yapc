@@ -4,6 +4,12 @@
       "title": "YAPC File Sharing API",
       "version": "2.0.0"
     },
+    "servers": [
+        {
+          "url": "https://pomf1.080609.xyz",
+          "description": "Main endpoint"
+        }
+    ],
     "paths": {
       "/exists": {
         "post": {
