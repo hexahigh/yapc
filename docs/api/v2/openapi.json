@@ -1,0 +1,338 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "YAPC File Sharing API",
+      "version": "2.0.0"
+    },
+    "paths": {
+      "/exists": {
+        "post": {
+          "summary": "Check if a file exists",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The file hash"
+                    }
+                  },
+                  "required": ["id"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "File exists",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "error": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid request"
+            },
+            "404": {
+              "description": "File not found"
+            }
+          }
+        }
+      },
+      "/store": {
+        "post": {
+          "summary": "Store a file",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "multipart/form-data": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "file": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "File stored successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "sha256": {
+                        "type": "string"
+                      },
+                      "sha1": {
+                        "type": "string"
+                      },
+                      "md5": {
+                        "type": "string"
+                      },
+                      "crc32": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid request"
+            },
+            "500": {
+              "description": "Internal server error"
+            }
+          }
+        }
+      },
+      "/get/{hash}": {
+        "get": {
+          "summary": "Get a file by hash",
+          "parameters": [
+            {
+              "name": "hash",
+              "in": "path",
+              "required": true,
+              "description": "The file hash",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "File retrieved successfully"
+            },
+            "400": {
+              "description": "Invalid hash"
+            },
+            "404": {
+              "description": "File not found"
+            },
+            "500": {
+              "description": "Internal server error"
+            }
+          }
+        }
+      },
+      "/get2": {
+        "get": {
+          "summary": "Get a file with query parameters",
+          "parameters": [
+            {
+              "name": "h",
+              "in": "query",
+              "required": true,
+              "description": "The file hash",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "e",
+              "in": "query",
+              "required": false,
+              "description": "The file extension",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "f",
+              "in": "query",
+              "required": false,
+              "description": "The filename to use for download",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "File retrieved successfully"
+            },
+            "400": {
+              "description": "Invalid request"
+            },
+            "404": {
+              "description": "File not found"
+            },
+            "500": {
+              "description": "Internal server error"
+            }
+          }
+        }
+      },
+      "/stats": {
+        "get": {
+          "summary": "Get statistics",
+          "responses": {
+            "200": {
+              "description": "Statistics retrieved successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "totalFiles": {
+                        "type": "integer"
+                      },
+                      "totalSize": {
+                        "type": "integer"
+                      },
+                      "totalSpace": {
+                        "type": "integer"
+                      },
+                      "availableSpace": {
+                        "type": "integer"
+                      },
+                      "percentageUsed": {
+                        "type": "number"
+                      },
+                      "compression": {
+                        "type": "boolean"
+                      },
+                      "compression_level": {
+                        "type": "integer"
+                      },
+                      "version": {
+                        "type": "string"
+                      },
+                      "averageSpeed": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error"
+            }
+          }
+        }
+      },
+      "/ping": {
+        "get": {
+          "summary": "Ping the server",
+          "responses": {
+            "200": {
+              "description": "Pong"
+            }
+          }
+        }
+      },
+      "/health": {
+        "get": {
+          "summary": "Check server health",
+          "responses": {
+            "200": {
+              "description": "Server is healthy"
+            }
+          }
+        }
+      },
+      "/u/{id}": {
+        "get": {
+          "summary": "Redirect to a URL by ID",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "The URL ID",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "302": {
+              "description": "Redirect to URL"
+            },
+            "404": {
+              "description": "URL not found"
+            },
+            "500": {
+              "description": "Internal server error"
+            }
+          }
+        }
+      },
+      "/shorten": {
+        "post": {
+          "summary": "Shorten a URL",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "The URL to shorten"
+                    }
+                  },
+                  "required": ["url"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "URL shortened successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "error": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid request"
+            },
+            "500": {
+              "description": "Internal server error"
+            }
+          }
+        }
+      }
+    }
+  }
