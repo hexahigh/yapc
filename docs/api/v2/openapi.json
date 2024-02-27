@@ -82,6 +82,30 @@
             }
           },
           "responses": {
+            "200":{
+              "description": "File uploaded successfully but not stored because it already exists",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "sha256": {
+                        "type": "string"
+                      },
+                      "sha1": {
+                        "type": "string"
+                      },
+                      "md5": {
+                        "type": "string"
+                      },
+                      "crc32": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
             "201": {
               "description": "File stored successfully",
               "content": {
