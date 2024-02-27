@@ -47,6 +47,7 @@ var db *sql.DB
 var logger *log.Logger
 
 func main() {
+	flag.Parse()
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	fmt.Println("Starting")
 
