@@ -40,6 +40,7 @@ var (
 	dbHost   = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
 	dbDb     = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
 	dbFile   = flag.String("db:file", "./data/yapc.db", "SQLite database file")
+	cleanDb  = flag.Bool("cleandb", false, "Clean the database")
 )
 
 var downloadSpeeds []float64
@@ -71,6 +72,11 @@ func main() {
 		log.Fatalf("Invalid database type: %s", *dbType)
 		os.Exit(1)
 	}
+
+	if *cleanDb {
+		dbClean()
+	}
+
 	onStart()
 	initDB()
 
@@ -655,4 +661,46 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("pong"))
+}
+
+func dbClean() {
+	log.Println("Cleaning database")
+
+	log.Println("Looking for missing files...")
+	// Query the database to get all IDs
+	rows, err := db.Query("SELECT id FROM data")
+	if err != nil {
+		log.Fatalf("Failed to query database: %v", err)
+	}
+	defer rows.Close()
+
+	// Iterate over the rows
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			log.Fatalf("Failed to scan row: %v", err)
+		}
+
+		// Construct the file path
+		filePath := filepath.Join(*dataDir, id)
+		if *compress {
+			filePath += ".zst"
+		}
+
+		// Check if the file exists
+		_, err := os.Stat(filePath)
+		if os.IsNotExist(err) {
+			// If the file does not exist, delete the entry from the database
+			_, err := db.Exec("DELETE FROM data WHERE id = ?", id)
+			if err != nil {
+				log.Printf("Failed to delete entry with ID %s: %v", id, err)
+			} else {
+				log.Printf("Deleted entry with ID %s because the file does not exist", id)
+			}
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Fatalf("Error iterating over rows: %v", err)
+	}
 }
