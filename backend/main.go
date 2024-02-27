@@ -22,12 +22,13 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "2.0.0"
+const version = "2.1.0"
 
 var (
 	dataDir     = flag.String("d", "./data", "Folder to store files")
@@ -37,6 +38,11 @@ var (
 	dbFile      = flag.String("db", "./data/yapc.db", "SQLite database file to use for the url shortener")
 	noSpeedtest = flag.Bool("disable-speedtest", true, "Disable speedtest")
 	logging     = flag.Bool("log", false, "Enable logging")
+	mysql       = flag.Bool("mysql", false, "Enable MySQL/MariaDB")
+	mysqlPass   = flag.String("mysql-pass", "", "MySQL password (if any)")
+	mysqlUser   = flag.String("mysql-user", "root", "MySQL user")
+	mysqlHost   = flag.String("mysql-host", "localhost:3306", "MySQL host")
+	mysqlDB     = flag.String("mysql-db", "yapc", "MySQL database")
 )
 
 var downloadSpeeds []float64
@@ -61,9 +67,19 @@ func main() {
 
 	// Initialize the SQLite database
 	var err error
-	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
-	if err != nil {
-		log.Fatal(err)
+	if *mysql {
+		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *mysqlUser, *mysqlPass, *mysqlHost, *mysqlDB))
+		if err != nil {
+			log.Fatal(err)
+		}
+		db.SetConnMaxLifetime(time.Minute * 3)
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(10)
+	} else {
+		db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	onStart()
 	initDB()
