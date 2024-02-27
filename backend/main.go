@@ -34,7 +34,6 @@ var (
 	port     = flag.Int("p", 8080, "Port to listen on")
 	compress = flag.Bool("c", false, "Enable compression")
 	level    = flag.Int("l", 3, "Compression level")
-	logging  = flag.Bool("log", false, "Enable logging")
 	dbType   = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
 	dbPass   = flag.String("db:pass", "", "Database password (Unused for sqlite)")
 	dbUser   = flag.String("db:user", "root", "Database user (Unused for sqlite)")
@@ -47,21 +46,9 @@ var downloadSpeeds []float64
 var db *sql.DB
 var logger *log.Logger
 
-func init() {
-	flag.Parse()
-	if *logging {
-		logFile, err := os.OpenFile("log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.SetOutput(logFile)
-	}
-}
-
 func main() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
-	fmt.Println("Starting")
+	logger.Println("Starting")
 
 	// Initialize the SQLite database
 	var err error
@@ -69,7 +56,7 @@ func main() {
 	case "mysql":
 		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 		db.SetConnMaxLifetime(time.Minute * 3)
 		db.SetMaxOpenConns(10)
@@ -77,17 +64,17 @@ func main() {
 	case "sqlite":
 		db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 	default:
-		log.Fatalf("Invalid database type: %s", *dbType)
+		logger.Fatalf("Invalid database type: %s", *dbType)
 		os.Exit(1)
 	}
 	onStart()
 	initDB()
 
-	fmt.Println("Started")
-	fmt.Println("Listening on port", *port)
+	logger.Println("Started")
+	logger.Println("Listening on port", *port)
 
 	http.HandleFunc("/exists", handleExists)
 	http.HandleFunc("/store", handleStore)
@@ -127,10 +114,10 @@ func onStart() {
 	for _, file := range files {
 		if filepath.Ext(file.Name()) != ".zst" && *compress {
 			// File is not compressed and compression is on, warn the user
-			log.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
+			logger.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
 		} else if filepath.Ext(file.Name()) == ".zst" && !*compress {
 			// File is compressed and compression is off, warn the user
-			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
+			logger.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
 		}
 	}
 }
@@ -171,7 +158,7 @@ func initDB() {
 		uploaded INTEGER NOT NULL
 	)`)
 	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
+		logger.Fatalf("Failed to create table: %v", err)
 	}
 }
 
