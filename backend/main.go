@@ -48,7 +48,7 @@ var logger *log.Logger
 
 func main() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
-	logger.Println("Starting")
+	fmt.Println("Starting")
 
 	// Initialize the SQLite database
 	var err error
@@ -56,7 +56,7 @@ func main() {
 	case "mysql":
 		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
 		if err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
 		}
 		db.SetConnMaxLifetime(time.Minute * 3)
 		db.SetMaxOpenConns(10)
@@ -64,17 +64,17 @@ func main() {
 	case "sqlite":
 		db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
 		if err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
 		}
 	default:
-		logger.Fatalf("Invalid database type: %s", *dbType)
+		log.Fatalf("Invalid database type: %s", *dbType)
 		os.Exit(1)
 	}
 	onStart()
 	initDB()
 
-	logger.Println("Started")
-	logger.Println("Listening on port", *port)
+	fmt.Println("Started")
+	fmt.Println("Listening on port", *port)
 
 	http.HandleFunc("/exists", handleExists)
 	http.HandleFunc("/store", handleStore)
@@ -114,10 +114,10 @@ func onStart() {
 	for _, file := range files {
 		if filepath.Ext(file.Name()) != ".zst" && *compress {
 			// File is not compressed and compression is on, warn the user
-			logger.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
+			log.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
 		} else if filepath.Ext(file.Name()) == ".zst" && !*compress {
 			// File is compressed and compression is off, warn the user
-			logger.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
+			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
 		}
 	}
 }
@@ -158,7 +158,7 @@ func initDB() {
 		uploaded INTEGER NOT NULL
 	)`)
 	if err != nil {
-		logger.Fatalf("Failed to create table: %v", err)
+		log.Fatalf("Failed to create table: %v", err)
 	}
 }
 
