@@ -30,17 +30,18 @@ import (
 const version = "2.2.0"
 
 var (
-	dataDir  = flag.String("d", "./data", "Folder to store files")
-	port     = flag.Int("p", 8080, "Port to listen on")
-	compress = flag.Bool("c", false, "Enable compression")
-	level    = flag.Int("l", 3, "Compression level")
-	dbType   = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
-	dbPass   = flag.String("db:pass", "", "Database password (Unused for sqlite)")
-	dbUser   = flag.String("db:user", "root", "Database user (Unused for sqlite)")
-	dbHost   = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
-	dbDb     = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
-	dbFile   = flag.String("db:file", "./data/yapc.db", "SQLite database file")
-	cleanDb  = flag.Bool("cleandb", false, "Clean the database")
+	dataDir   = flag.String("d", "./data", "Folder to store files")
+	port      = flag.Int("p", 8080, "Port to listen on")
+	compress  = flag.Bool("c", false, "Enable compression")
+	level     = flag.Int("l", 3, "Compression level")
+	dbType    = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
+	dbPass    = flag.String("db:pass", "", "Database password (Unused for sqlite)")
+	dbUser    = flag.String("db:user", "root", "Database user (Unused for sqlite)")
+	dbHost    = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
+	dbDb      = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
+	dbFile    = flag.String("db:file", "./data/yapc.db", "SQLite database file")
+	fixDb     = flag.Bool("fixdb", false, "Fix the database")
+	fixDb_dry = flag.Bool("fixdb:dry", false, "Dry run fixdb")
 )
 
 var downloadSpeeds []float64
@@ -73,8 +74,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *cleanDb {
-		dbClean()
+	if *fixDb {
+		dbFixer()
 	}
 
 	onStart()
@@ -663,7 +664,7 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong"))
 }
 
-func dbClean() {
+func dbFixer() {
 	log.Println("Cleaning database")
 
 	log.Println("Looking for missing files...")
@@ -691,12 +692,13 @@ func dbClean() {
 		_, err := os.Stat(filePath)
 		if os.IsNotExist(err) {
 			// If the file does not exist, delete the entry from the database
-			_, err := db.Exec("DELETE FROM data WHERE id = ?", id)
-			if err != nil {
-				log.Printf("Failed to delete entry with ID %s: %v", id, err)
-			} else {
-				log.Printf("Deleted entry with ID %s because the file does not exist", id)
+			if !*fixDb_dry {
+				_, err := db.Exec("DELETE FROM data WHERE id = ?", id)
+				if err != nil {
+					log.Printf("Failed to delete entry with ID %s: %v", id, err)
+				}
 			}
+			log.Printf("Deleted entry with ID %s because the file does not exist", id)
 		}
 	}
 
