@@ -1,6 +1,8 @@
 ![YAPC logo](https://pomf.080609.xyz/img/logo-dark.svg)<br>
 [![License](https://img.shields.io/github/license/hexahigh/yapc)](https://github.com/hexahigh/yapc/blob/main/LICENSE)
 [![Go report card](https://goreportcard.com/badge/github.com/hexahigh/yapc/backend)](https://goreportcard.com/report/github.com/hexahigh/yapc/backend)
+[![Api docs](https://img.shields.io/badge/Api_docs-gray?style=flat&logo=swagger
+)](https://pomf-api.080609.xyz/)
 ![Maintained](https://img.shields.io/badge/status-maintained-lime.svg)<br>
 Yapc is yet another file sharing site inspired by pomf.
 The frontend is written using svelte and tailwind and the backend is written using Go.
