@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"hash/crc64"
 	"io"
 	"io/fs"
 	"log"
@@ -27,7 +28,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "2.2.0"
+const version = "2.3.0"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -563,9 +564,9 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hasher := crc32.NewIEEE()
+	hasher := crc64.New(crc64.MakeTable(crc64.ISO))
 	hasher.Write([]byte(request.URL))
-	id := fmt.Sprintf("%x", hasher.Sum32())
+	id := fmt.Sprintf("%x", hasher.Sum64())
 
 	// Check if the Url is valid
 	if len(request.URL) > 2048 {
