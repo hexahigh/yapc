@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"math"
 	"mime"
 	"net/http"
 	"os"
@@ -28,21 +27,20 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-const version = "2.1.0"
+const version = "2.2.0"
 
 var (
-	dataDir     = flag.String("d", "./data", "Folder to store files")
-	port        = flag.Int("p", 8080, "Port to listen on")
-	compress    = flag.Bool("c", false, "Enable compression")
-	level       = flag.Int("l", 3, "Compression level")
-	dbFile      = flag.String("db", "./data/yapc.db", "SQLite database file to use for the url shortener")
-	noSpeedtest = flag.Bool("disable-speedtest", true, "Disable speedtest")
-	logging     = flag.Bool("log", false, "Enable logging")
-	mysql       = flag.Bool("mysql", false, "Enable MySQL/MariaDB")
-	mysqlPass   = flag.String("mysql-pass", "", "MySQL password (if any)")
-	mysqlUser   = flag.String("mysql-user", "root", "MySQL user")
-	mysqlHost   = flag.String("mysql-host", "localhost:3306", "MySQL host")
-	mysqlDB     = flag.String("mysql-db", "yapc", "MySQL database")
+	dataDir  = flag.String("d", "./data", "Folder to store files")
+	port     = flag.Int("p", 8080, "Port to listen on")
+	compress = flag.Bool("c", false, "Enable compression")
+	level    = flag.Int("l", 3, "Compression level")
+	logging  = flag.Bool("log", false, "Enable logging")
+	dbType   = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
+	dbPass   = flag.String("db:pass", "", "Database password (Unused for sqlite)")
+	dbUser   = flag.String("db:user", "root", "Database user (Unused for sqlite)")
+	dbHost   = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
+	dbDb     = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
+	dbFile   = flag.String("db:file", "./data/yapc.db", "SQLite database file")
 )
 
 var downloadSpeeds []float64
@@ -67,45 +65,26 @@ func main() {
 
 	// Initialize the SQLite database
 	var err error
-	if *mysql {
-		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *mysqlUser, *mysqlPass, *mysqlHost, *mysqlDB))
+	switch *dbType {
+	case "mysql":
+		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
 		if err != nil {
 			log.Fatal(err)
 		}
 		db.SetConnMaxLifetime(time.Minute * 3)
 		db.SetMaxOpenConns(10)
 		db.SetMaxIdleConns(10)
-	} else {
+	case "sqlite":
 		db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
 		if err != nil {
 			log.Fatal(err)
 		}
+	default:
+		log.Fatalf("Invalid database type: %s", *dbType)
+		os.Exit(1)
 	}
 	onStart()
 	initDB()
-
-	speed, err := testDownloadSpeed(10, 5*time.Second)
-	if err != nil {
-		log.Fatalf("Error testing download speed: %v", err)
-	}
-	downloadSpeeds = append(downloadSpeeds, speed)
-
-	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				speed, err := testDownloadSpeed(10, 5*time.Second)
-				if err != nil {
-					log.Fatalf("Error testing download speed: %v", err)
-				}
-				if err == nil {
-					downloadSpeeds = append(downloadSpeeds, speed) // This causes a tiny memory leak. Too bad!
-				}
-			}
-		}
-	}()
 
 	fmt.Println("Started")
 	fmt.Println("Listening on port", *port)
@@ -171,58 +150,6 @@ func getAvailableDiskSpace(path string) (uint64, error) {
 		return 0, err
 	}
 	return stat.Bavail * uint64(stat.Bsize), nil
-}
-func testDownloadSpeed(concurrentConnections int, testDuration time.Duration) (float64, error) {
-
-	if *noSpeedtest {
-		return 0, nil
-	}
-
-	var totalBytes int64
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	errChan := make(chan error, concurrentConnections)
-
-	start := time.Now()
-	for i := 0; i < concurrentConnections; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			resp, err := http.Get("https://speed.080609.xyz/downloading")
-			if err != nil {
-				errChan <- err
-				return
-			}
-			defer resp.Body.Close()
-
-			n, err := io.CopyN(io.Discard, resp.Body, math.MaxInt64)
-			if err != nil && err != io.EOF {
-				errChan <- err
-				return
-			}
-
-			mu.Lock()
-			totalBytes += n
-			mu.Unlock()
-		}()
-	}
-
-	// Wait for the specified test duration and then stop the test
-	time.Sleep(testDuration)
-	wg.Wait()
-	close(errChan)
-
-	// Check for errors
-	for err := range errChan {
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	duration := time.Since(start).Seconds()
-	speed := float64(totalBytes) / duration // Speed in bytes per second
-
-	return speed, nil
 }
 func initDB() {
 	// Create table if it does not exist
