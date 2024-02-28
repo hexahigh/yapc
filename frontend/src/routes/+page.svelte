@@ -109,12 +109,26 @@
 		await getStats();
 	});
 
+	function handleDragOver(event) {
+		event.preventDefault(); // Prevent default browser behavior like opening the file
+		event.dataTransfer.dropEffect = 'copy'; // Indicate allowed drop effect
+	}
+
+	function handleDrop(event) {
+		event.preventDefault();
+		const droppedFiles = event.dataTransfer.files;
+		files = [...droppedFiles];
+		handleSubmit();
+	}
+
 	async function handleSubmit(event) {
 		uploadCount = 0;
 		status = 'Uploading...';
 		uploadProgress = 0;
 		errorMessage = '';
-		event.preventDefault();
+		if (event) {
+			event.preventDefault();
+		}
 
 		for (let i = 0; i < files.length; i++) {
 			let filename = files[i].name || 'file.bin';
@@ -136,7 +150,7 @@
 					uploadCount++;
 					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
 					let link;
-					
+
 					if (!direct) {
 						if (useS256) {
 							// Use SHA256 hash
@@ -156,10 +170,10 @@
 					}
 
 					if (shortenUrl) {
-							link = await shortenLink(link);
-						} else {
-							shortenLink(link);
-						}
+						link = await shortenLink(link);
+					} else {
+						shortenLink(link);
+					}
 
 					if (doArchive) {
 						archive(link);
@@ -319,7 +333,14 @@
 		<form on:submit={handleSubmit} class="p-6 mt-10 rounded shadow-md shadow-white w-80">
 			<div class="flex flex-col">
 				<label for="file" class="mb-2 font-bold text-lg">Upload Files</label>
-				<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
+				<input id="file" type="file" bind:files multiple class="p-2 border rounded-md" />
+				<div
+					on:dragover={handleDragOver}
+					on:drop={handleDrop}
+					class="mt-4 border dashed border-gray-400 rounded p-4 text-center hover:bg-gray-100"
+				>
+					Drag and drop files here
+				</div>
 			</div>
 			<button
 				type="submit"
