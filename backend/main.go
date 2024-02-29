@@ -27,6 +27,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/peterbourgon/ff"
 )
 
 const version = "2.3.0"
@@ -52,6 +53,8 @@ var logger *log.Logger
 
 func main() {
 	flag.Parse()
+	ff.Parse(flag.CommandLine, os.Args[1:], ff.WithEnvVarPrefix("YAPC"))
+
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	fmt.Println("Starting")
 
