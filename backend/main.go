@@ -14,6 +14,7 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -546,6 +547,11 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 
 func handleShorten(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
+	var response struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+		ID      string `json:"id"`
+	}
 	if r.Method == "OPTIONS" {
 		return
 	}
@@ -568,11 +574,18 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 
 	// Check if the Url is valid
 	if len(request.URL) > 2048 {
-		response := map[string]interface{}{
-			"success": false,
-			"error":   "URL is too long (2048 characters maximum)",
-			"id":      "",
-		}
+		response.Success = false
+		response.Error = "Url is too long (>2048 characters)"
+		response.ID = ""
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if isValidURL(request.URL) == false {
+		response.Success = false
+		response.Error = "Url is not valid"
+		response.ID = ""
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 		return
@@ -588,11 +601,9 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 
 	if existingID != "" {
 		// URL is already in the database, return the existing ID
-		response := map[string]interface{}{
-			"success": true,
-			"error":   "",
-			"id":      existingID,
-		}
+		response.Success = true
+		response.Error = ""
+		response.ID = existingID
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 		return
@@ -601,21 +612,17 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 	// URL is not in the database, insert it with hits set to  0
 	_, err = db.Exec("INSERT INTO urls (id, url, hits) VALUES (?, ?,  0)", id, request.URL)
 	if err != nil {
-		response := map[string]interface{}{
-			"success": false,
-			"error":   fmt.Sprintf("Failed to store URL: %v", err),
-			"id":      "",
-		}
+		response.Success = false
+		response.Error = "Failed to insert URL into database: " + err.Error()
+		response.ID = ""
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	response := map[string]interface{}{
-		"success": true,
-		"error":   "",
-		"id":      id,
-	}
+	response.Error = ""
+	response.Success = true
+	response.ID = id
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -703,4 +710,8 @@ func dbClean() {
 	if err := rows.Err(); err != nil {
 		log.Fatalf("Error iterating over rows: %v", err)
 	}
+}
+func isValidURL(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
 }
