@@ -1,0 +1,23 @@
+FROM alpine:3.19
+
+COPY --from=golang:1.22-alpine /usr/local/go/ /usr/local/go/
+ 
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+RUN apk add --no-cache \
+    git \
+    gcc \
+    musl-dev
+
+RUN git clone https://github.com/hexahigh/yapc.git /source
+
+WORKDIR /source/backend
+
+ENV CGO_ENABLED=1
+RUN go build -o server ./main.go
+
+RUN mv ./server /server
+WORKDIR /
+RUN rm -rf /source
+
+ENTRYPOINT [ "/server", "-d", "/data", "-db:file", "/data/yapc.db" ]

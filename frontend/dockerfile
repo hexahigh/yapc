@@ -1,0 +1,12 @@
+FROM node:21-alpine3.19
+
+RUN apk add --no-cache \
+    git
+
+RUN git clone https://github.com/hexahigh/yapc.git /source
+
+WORKDIR /source/frontend
+
+RUN npm install
+
+ENTRYPOINT [ "npm", "run", "build" ]

@@ -154,7 +154,7 @@ func getAvailableDiskSpace(path string) (uint64, error) {
 func initDB() {
 	// Create table if it does not exist
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
-		id TEXT PRIMARY KEY,
+		id VARCHAR(255) PRIMARY KEY,
 		url TEXT NOT NULL,
 		hits INTEGER
 	)`)
@@ -163,7 +163,7 @@ func initDB() {
 	}
 	// Create data table
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS data (
-		id TEXT PRIMARY KEY,
+		id VARCHAR(255) PRIMARY KEY,
 		sha256 TEXT NOT NULL,
 		sha1 TEXT NOT NULL,
 		md5 TEXT NOT NULL,
