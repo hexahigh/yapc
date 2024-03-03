@@ -16,7 +16,7 @@
 	let uploadCount;
 	let ep = endpoint;
 	let doArchive = false;
-	let direct = true;
+	let direct = false;
 	let useS256 = false;
 
 	let shortenLinks = [];
@@ -365,10 +365,10 @@
 			</label>
 			<label
 				class="flex items-center mt-4"
-				title="Download directly from the endpoint instead of using the proxy"
+				title="Downloads directly from the primary server"
 			>
 				<input type="checkbox" bind:checked={direct} class="form-checkbox" />
-				<span class="ml-2">Direct download</span>
+				<span class="ml-2">Direct</span>
 			</label>
 			<p id="status" class="mt-4 text-center">{status}</p>
 			{#if uploadProgress > 0 && uploadProgress < 100}
