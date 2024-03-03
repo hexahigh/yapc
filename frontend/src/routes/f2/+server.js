@@ -1,6 +1,6 @@
 import { endpoint } from '$lib/conf.js';
 
-export async function GET({ url, headers }) {
+export async function GET({ url, request }) {
     // Extract the HASH and the file extension from the url
     const hash = url.searchParams.get('h') || '0';
     const ext = url.searchParams.get('e') || 'bin';
@@ -15,7 +15,7 @@ export async function GET({ url, headers }) {
         }
     ];
 
-    const ip = headers.get('x-forwarded-for') || 'unknown';
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
 
     // Use ip-api.com to get the latitude and longitude of the IP address
     const response = await fetch(`http://ip-api.com/json/${ip}`);
