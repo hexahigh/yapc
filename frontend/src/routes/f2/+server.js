@@ -15,7 +15,7 @@ export async function GET({ url, request }) {
         }
     ];
 
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('remote_addr') || 'unknown';
 
     // Use ip-api.com to get the latitude and longitude of the IP address
     const response = await fetch(`http://ip-api.com/json/${ip}`);
