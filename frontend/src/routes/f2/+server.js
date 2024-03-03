@@ -6,6 +6,8 @@ export async function GET({ url, request }) {
 	const ext = url.searchParams.get('e') || 'bin';
 	const filename = url.searchParams.get('f') || 'file.bin';
 
+    let fileUrl;
+
 	const servers = [
 		{
 			name: 'NO1',
@@ -79,12 +81,12 @@ export async function GET({ url, request }) {
 		}
 
 		// Construct the URL to the file on the selected server
-		const fileUrl = `${closestServer.url}/get2/?h=${hash}&e=${ext}&f=${filename}`;
+		fileUrl = `${closestServer.url}/get2/?h=${hash}&e=${ext}&f=${filename}`;
     } else {
         // Construct the URL to the file on the default server
-        const fileUrl = `${endpoint}/get2/?h=${hash}&e=${ext}&f=${filename}`;
+        fileUrl = `${endpoint}/get2/?h=${hash}&e=${ext}&f=${filename}`;
     }
-    
+
 	// Create a 301 redirect response
 	return new Response(null, {
 		status: 301,
