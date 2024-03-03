@@ -30,7 +30,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.3.0"
+const version = "2.4.0"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -291,6 +291,9 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get the filetype based on magic number
+	contentType := http.DetectContentType(buf.Bytes())
+
 	newFile, err := os.Create(filename)
 	if err != nil {
 		http.Error(w, "Failed to create file", http.StatusInternalServerError)
@@ -305,8 +308,8 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write the hashes and the current Unix time to the "data" table in the database
-	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, uploaded) VALUES (?, ?, ?, ?, ?, ?)`,
-		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], time.Now().Unix())
+	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, uploaded, type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], time.Now().Unix(), contentType)
 	if err != nil {
 		http.Error(w, "Failed to store hashes in database", http.StatusInternalServerError)
 		return
@@ -587,7 +590,7 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isValidURL(request.URL) == false {
+	if !isValidURL(request.URL) {
 		response.Success = false
 		response.Error = "Url is not valid"
 		response.ID = ""
