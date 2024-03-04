@@ -30,7 +30,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.4.0"
+const version = "2.4.1"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -168,6 +168,7 @@ func initDB() {
 		sha1 TEXT NOT NULL,
 		md5 TEXT NOT NULL,
 		crc32 TEXT NOT NULL,
+		type TEXT,
 		uploaded INTEGER NOT NULL
 	)`)
 	if err != nil {
@@ -308,8 +309,8 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write the hashes and the current Unix time to the "data" table in the database
-	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, uploaded, type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], time.Now().Unix(), contentType)
+	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, type, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], contentType, time.Now().Unix())
 	if err != nil {
 		http.Error(w, "Failed to store hashes in database", http.StatusInternalServerError)
 		return
