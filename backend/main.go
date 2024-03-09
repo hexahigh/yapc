@@ -39,7 +39,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.2"
+const version = "2.5.3"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -54,6 +54,7 @@ var (
 	dbFile    = flag.String("db:file", "./data/yapc.db", "SQLite database file")
 	fixDb     = flag.Bool("fixdb", false, "Fix the database")
 	fixDb_dry = flag.Bool("fixdb:dry", false, "Dry run fixdb")
+	doResniff = flag.Bool("resniff", false, "Resniff content-types")
 )
 
 var downloadSpeeds []float64
@@ -91,12 +92,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	initDB()
+
 	if *fixDb {
 		dbFixer()
 	}
 
+	if *doResniff {
+		resniff()
+	}
+
 	onStart()
-	initDB()
 
 	fmt.Println("Started")
 	fmt.Println("Listening on port", *port)
@@ -770,4 +776,73 @@ func dbFixer() {
 func isValidURL(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func resniff() {
+	// Query the database to get all file IDs
+	rows, err := db.Query("SELECT id FROM data")
+	if err != nil {
+		log.Fatalf("Failed to query database: %v", err)
+	}
+	defer rows.Close()
+
+	// Initialize a counter for the number of files processed
+	var fileCount int
+
+	// Get the total number of rows in the database
+	var totalRows int
+	err = db.QueryRow("SELECT COUNT(*) FROM data").Scan(&totalRows)
+	if err != nil {
+		log.Fatalf("Failed to get total row count: %v", err)
+	}
+
+	// Iterate over the rows
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			log.Fatalf("Failed to scan row: %v", err)
+		}
+
+		// Construct the file path
+		filePath := filepath.Join(*dataDir, id)
+		if *compress {
+			filePath += ".zst"
+		}
+
+		// Open the file
+		file, err := os.Open(filePath)
+		if err != nil {
+			log.Printf("Failed to open file %s: %v", filePath, err)
+			continue
+		}
+		defer file.Close()
+
+		// Read the first 1KB of the file
+		buffer := make([]byte, 1024)
+		n, err := file.Read(buffer)
+		if err != nil && err != io.EOF {
+			log.Printf("Failed to read file %s: %v", filePath, err)
+			continue
+		}
+
+		// Sniff the content type
+		contentType := sniff.DetectContentType(buffer[:n])
+
+		// Update the database with the new content type
+		_, err = db.Exec("UPDATE data SET type = ? WHERE id = ?", contentType, id)
+		if err != nil {
+			log.Printf("Failed to update content type for file %s: %v", filePath, err)
+			continue
+		}
+
+		// Increment the file counter
+		fileCount++
+
+		// Print the progress
+		fmt.Printf("Processed file %d/%d\n", fileCount, totalRows)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Fatalf("Error iterating over rows: %v", err)
+	}
 }
