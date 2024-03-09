@@ -31,12 +31,14 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
+	"golang.org/x/image/webp"
+
 	"github.com/hexahigh/yapc/backend/lib/hash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.0"
+const version = "2.5.1"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -58,6 +60,9 @@ var db *sql.DB
 var logger *log.Logger
 
 func main() {
+
+	image.RegisterFormat("webp", "RIFF????WEBPVP8 ", webp.Decode, webp.DecodeConfig)
+
 	flag.Parse()
 	ff.Parse(flag.CommandLine, os.Args[1:], ff.WithEnvVarPrefix("YAPC"))
 
