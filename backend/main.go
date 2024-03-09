@@ -828,11 +828,18 @@ func resniff() {
 		// Sniff the content type
 		contentType := sniff.DetectContentType(buffer[:n])
 
-		// Update the database with the new content type
-		_, err = db.Exec("UPDATE data SET type = ? WHERE id = ?", contentType, id)
-		if err != nil {
-			log.Printf("Failed to update content type for file %s: %v", filePath, err)
-			continue
+		// Retry mechanism for updating the database
+		for i := 0; i < 3; i++ { // Retry up to 3 times
+			_, err = db.Exec("UPDATE data SET type = ? WHERE id = ?", contentType, id)
+			if err == nil {
+				break // Success, break the loop
+			} else if err.Error() == "database table is locked: data" {
+				log.Printf("Failed to update content type for file %s: %v, retrying...", filePath, err)
+				time.Sleep(1 * time.Second) // Wait for 1 second before retrying
+			} else {
+				log.Printf("Failed to update content type for file %s: %v", filePath, err)
+				break // Other error, break the loop
+			}
 		}
 
 		// Increment the file counter
