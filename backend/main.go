@@ -26,11 +26,17 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+
+	"github.com/hexahigh/yapc/backend/lib/hash"
 	"github.com/klauspost/compress/zstd"
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.4.1"
+const version = "2.5.0"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -168,6 +174,8 @@ func initDB() {
 		sha1 TEXT NOT NULL,
 		md5 TEXT NOT NULL,
 		crc32 TEXT NOT NULL,
+		ahash TEXT,
+		dhash TEXT,
 		type TEXT,
 		uploaded INTEGER NOT NULL
 	)`)
@@ -295,6 +303,38 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	// Get the filetype based on magic number
 	contentType := http.DetectContentType(buf.Bytes())
 
+	if contentType == "image/jpeg" || contentType == "image/png" || contentType == "image/gif" {
+		// Decode the image from the buffer
+		img, _, err := image.Decode(bytes.NewReader(buf.Bytes()))
+		if err != nil {
+			http.Error(w, "Failed to decode image", http.StatusInternalServerError)
+			return
+		}
+
+		// Choose the hash length
+		hashLen := 32
+
+		// Hash the image with Ahash
+		ahashBytes, err := hash.Ahash(img, hashLen)
+		if err != nil {
+			http.Error(w, "Failed to generate Ahash", http.StatusInternalServerError)
+			return
+		}
+
+		// Hash the image with Dhash
+		dhashBytes, err := hash.Dhash(img, hashLen)
+		if err != nil {
+			http.Error(w, "Failed to generate Dhash", http.StatusInternalServerError)
+			return
+		}
+		dHash := hex.EncodeToString(dhashBytes)
+		aHash := hex.EncodeToString(ahashBytes)
+
+		hashes["dhash"] = dHash
+		hashes["ahash"] = aHash
+
+	}
+
 	newFile, err := os.Create(filename)
 	if err != nil {
 		http.Error(w, "Failed to create file", http.StatusInternalServerError)
@@ -309,8 +349,8 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write the hashes and the current Unix time to the "data" table in the database
-	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, type, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], contentType, time.Now().Unix())
+	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, ahash, dhash, type, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], hashes["ahash"], hashes["dhash"], contentType, time.Now().Unix())
 	if err != nil {
 		http.Error(w, "Failed to store hashes in database", http.StatusInternalServerError)
 		return
