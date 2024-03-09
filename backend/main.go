@@ -34,11 +34,12 @@ import (
 	"golang.org/x/image/webp"
 
 	"github.com/hexahigh/yapc/backend/lib/hash"
+	"github.com/hexahigh/yapc/backend/lib/sniff"
 	"github.com/klauspost/compress/zstd"
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.1"
+const version = "2.5.2"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -306,7 +307,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the filetype based on magic number
-	contentType := http.DetectContentType(buf.Bytes())
+	contentType := sniff.DetectContentType(buf.Bytes())
 
 	if contentType == "image/jpeg" || contentType == "image/png" || contentType == "image/gif" {
 		// Decode the image from the buffer
