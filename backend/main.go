@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -73,15 +72,6 @@ func main() {
 
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	fmt.Println("Starting")
-
-	// This "should" prevent the program from refusing to close
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		fmt.Println("Received signal:", sig, "Shutting down")
-		os.Exit(0)
-	}()
 
 	// Initialize the SQLite database
 	var err error
