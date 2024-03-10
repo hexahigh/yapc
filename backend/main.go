@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"database/sql"
 	"encoding/hex"
@@ -250,6 +251,13 @@ func handleExists(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStore(w http.ResponseWriter, r *http.Request) {
+	// Create a context with a timeout
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel() // Make sure to cancel the context when the function returns
+
+	// Use the context with a timeout for the request
+	r = r.WithContext(ctx)
+
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
 		return
@@ -390,6 +398,17 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
 	json.NewEncoder(w).Encode(hashes)
+
+	// Before returning, check if the context was canceled due to a timeout
+	select {
+	case <-ctx.Done():
+		if ctx.Err() == context.DeadlineExceeded {
+			http.Error(w, "Request timed out", http.StatusRequestTimeout)
+			return
+		}
+	default:
+		// No timeout, proceed as normal
+	}
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
