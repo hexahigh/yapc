@@ -39,7 +39,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.6"
+const version = "2.5.7"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -52,6 +52,7 @@ var (
 	dbHost    = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
 	dbDb      = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
 	dbFile    = flag.String("db:file", "./data/yapc.db", "SQLite database file")
+	dbConns   = flag.Int("db:conns", 20, "Mysql database max open connections")
 	fixDb     = flag.Bool("fixdb", false, "Fix the database")
 	fixDb_dry = flag.Bool("fixdb:dry", false, "Dry run fixdb")
 	doResniff = flag.Bool("resniff", false, "Resniff content-types")
@@ -80,8 +81,9 @@ func main() {
 			log.Fatal(err)
 		}
 		db.SetConnMaxLifetime(time.Minute * 3)
-		db.SetMaxOpenConns(10)
-		db.SetMaxIdleConns(10)
+		db.SetConnMaxIdleTime(time.Minute * 2)
+		db.SetMaxOpenConns(*dbConns)
+		db.SetMaxIdleConns(*dbConns)
 	case "sqlite":
 		db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&mode=rwc", *dbFile))
 		if err != nil {
