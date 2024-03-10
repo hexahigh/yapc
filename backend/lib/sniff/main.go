@@ -201,7 +201,7 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("zPQ"), "application/x-zpaq"},                            // * ADDED
 	&exactSig{[]byte("7kSt"), "application/x-zpaq"},                           // * ADDED
 	&maskedSig{
-		mask: []byte("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"),
+		mask: []byte("\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF"),
 		pat:  []byte("\x00\x00\x00\x00\x00\x00\x00\x2A\x2A\x41\x43\x45\x2A\x2A"),
 		ct:   "application/x-ace-compressed",
 	}, // * ADDED
@@ -233,6 +233,7 @@ type maskedSig struct {
 	ct        string
 }
 
+// In a pattern mask, 0xFF indicates the byte is strictly significant, 0xDF indicates that the byte is significant in an ASCII case-insensitive way, and 0x00 indicates that the byte is not significant.
 func (m *maskedSig) match(data []byte, firstNonWS int) string {
 	// pattern matching algorithm section 6
 	// https://mimesniff.spec.whatwg.org/#pattern-matching-algorithm
