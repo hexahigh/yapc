@@ -39,7 +39,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.5"
+const version = "2.5.6"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")
@@ -91,6 +91,8 @@ func main() {
 		log.Fatalf("Invalid database type: %s", *dbType)
 		os.Exit(1)
 	}
+
+	defer db.Close()
 
 	initDB()
 
