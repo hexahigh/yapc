@@ -74,6 +74,7 @@ func main() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	fmt.Println("Starting")
 
+	logLevelln(1, "Initializing database")
 	// Initialize the SQLite database
 	var err error
 	switch *dbType {
@@ -98,6 +99,7 @@ func main() {
 
 	defer db.Close()
 
+	logLevelln(1, "Running initDB")
 	initDB()
 
 	if *fixDb {
@@ -108,6 +110,7 @@ func main() {
 		resniff()
 	}
 
+	logLevelln(1, "Running onStart")
 	onStart()
 
 	fmt.Println("Started")
