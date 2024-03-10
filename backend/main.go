@@ -42,20 +42,21 @@ import (
 const version = "2.5.7"
 
 var (
-	dataDir   = flag.String("d", "./data", "Folder to store files")
-	port      = flag.Int("p", 8080, "Port to listen on")
-	compress  = flag.Bool("c", false, "Enable compression")
-	level     = flag.Int("l", 3, "Compression level")
-	dbType    = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
-	dbPass    = flag.String("db:pass", "", "Database password (Unused for sqlite)")
-	dbUser    = flag.String("db:user", "root", "Database user (Unused for sqlite)")
-	dbHost    = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
-	dbDb      = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
-	dbFile    = flag.String("db:file", "./data/yapc.db", "SQLite database file")
-	dbConns   = flag.Int("db:conns", 20, "Mysql database max open connections")
-	fixDb     = flag.Bool("fixdb", false, "Fix the database")
-	fixDb_dry = flag.Bool("fixdb:dry", false, "Dry run fixdb")
-	doResniff = flag.Bool("resniff", false, "Resniff content-types")
+	dataDir    = flag.String("d", "./data", "Folder to store files")
+	port       = flag.Int("p", 8080, "Port to listen on")
+	compress   = flag.Bool("c", false, "Enable compression")
+	level      = flag.Int("l", 3, "Compression level")
+	dbType     = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
+	dbPass     = flag.String("db:pass", "", "Database password (Unused for sqlite)")
+	dbUser     = flag.String("db:user", "root", "Database user (Unused for sqlite)")
+	dbHost     = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
+	dbDb       = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
+	dbFile     = flag.String("db:file", "./data/yapc.db", "SQLite database file")
+	dbConns    = flag.Int("db:conns", 20, "Mysql database max open connections")
+	fixDb      = flag.Bool("fixdb", false, "Fix the database")
+	fixDb_dry  = flag.Bool("fixdb:dry", false, "Dry run fixdb")
+	doResniff  = flag.Bool("resniff", false, "Resniff content-types")
+	printLevel = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
 )
 
 var downloadSpeeds []float64
@@ -272,13 +273,18 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logLevelln(1, "Something was uploaded")
+
 	// Create a wait group to wait for all hash computations to finish
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	hashes := make(map[string]string)
 
+	logLevelln(1, "Computing hashes")
+
 	// Define a function to compute a hash and store it in the map
 	computeHash := func(hashFunc crypto.Hash, hashKey string) {
+		logLevelln(1, "Computing "+hashKey)
 		defer wg.Done()
 		hasher := hashFunc.New()
 		hasher.Write(buf.Bytes())
@@ -286,6 +292,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		hashes[hashKey] = hash
 		mu.Unlock()
+		logLevelln(1, "Computed "+hashKey)
 	}
 
 	// Compute SHA256, SHA1, MD5, and CRC32 hashes concurrently
@@ -317,9 +324,11 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the filetype based on magic number
+	logLevelln(1, "Getting filetype")
 	contentType := sniff.DetectContentType(buf.Bytes())
 
 	if contentType == "image/jpeg" || contentType == "image/png" || contentType == "image/gif" {
+		logLevelln(1, "Detected image, computing Ahash and Dhash")
 		// Decode the image from the buffer
 		img, _, err := image.Decode(bytes.NewReader(buf.Bytes()))
 		if err != nil {
@@ -351,6 +360,8 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	logLevelln(1, "Saving file")
+
 	newFile, err := os.Create(filename)
 	if err != nil {
 		http.Error(w, "Failed to create file", http.StatusInternalServerError)
@@ -363,6 +374,8 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save file", http.StatusInternalServerError)
 		return
 	}
+
+	logLevelln(1, "Storing hashes in database")
 
 	// Write the hashes and the current Unix time to the "data" table in the database
 	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, ahash, dhash, type, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -848,5 +861,11 @@ func resniff() {
 
 	if err := rows.Err(); err != nil {
 		log.Fatalf("Error iterating over rows: %v", err)
+	}
+}
+
+func logLevelln(l int, s string) {
+	if *printLevel >= l {
+		logger.Println(s)
 	}
 }
