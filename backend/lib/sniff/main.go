@@ -161,10 +161,20 @@ var sniffSignatures = []sniffSig{
 		ct:   "audio/wave",
 	},
 	&exactSig{[]byte("fLaC"), "audio/flac"}, // * ADDED
+	// ? QOA does not have an official MIME type in its spec
+	&exactSig{[]byte("qoaf"), "audio/qoa"}, // * ADDED
 	// 6.2.0.2. video/mp4
 	mp4Sig{},
-	// 6.2.0.3. video/webm
-	&exactSig{[]byte("\x1A\x45\xDF\xA3"), "video/webm"},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"),
+		pat:  []byte("\x1A\x45\xDF\xA3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x6D\x61\x74\x72\x6F\x73\x6B\x61"),
+		ct:   "video/x-matroska",
+	}, // * ADDED
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
+		pat:  []byte("\x1A\x45\xDF\xA3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x77\x65\x62\x6D"),
+		ct:   "video/webm",
+	}, // * ADDED
 
 	// ! Font types
 	&maskedSig{
@@ -200,6 +210,7 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("BZ0"), "application/x-bzip"},                            // * ADDED
 	&exactSig{[]byte("zPQ"), "application/x-zpaq"},                            // * ADDED
 	&exactSig{[]byte("7kSt"), "application/x-zpaq"},                           // * ADDED
+	&exactSig{[]byte("!<arch>"), "application/x-archive"},                     // * ADDED
 	&maskedSig{
 		mask: []byte("\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF"),
 		pat:  []byte("\x00\x00\x00\x00\x00\x00\x00\x2A\x2A\x41\x43\x45\x2A\x2A"),
@@ -209,8 +220,10 @@ var sniffSignatures = []sniffSig{
 	// ! Executables
 	&exactSig{[]byte("\x4d\x5a"), "application/vnd.microsoft.portable-executable"}, // * ADDED
 	&exactSig{[]byte("\x7FELF"), "application/x-elf"},
-
 	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
+
+	// ! Other and miscallaneous
+	&exactSig{[]byte("SQLite format 3"), "application/x-sqlite3"}, // * ADDED
 
 	textSig{}, // should be last
 }
@@ -227,6 +240,7 @@ func (e *exactSig) match(data []byte, firstNonWS int) string {
 	return ""
 }
 
+// In a pattern mask, 0xFF indicates the byte is strictly significant, 0xDF indicates that the byte is significant in an ASCII case-insensitive way, and 0x00 indicates that the byte is not significant.
 type maskedSig struct {
 	mask, pat []byte
 	skipWS    bool
