@@ -39,7 +39,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.3"
+const version = "2.5.4"
 
 var (
 	dataDir   = flag.String("d", "./data", "Folder to store files")

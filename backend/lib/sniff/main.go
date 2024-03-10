@@ -198,6 +198,13 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("\x41\x72\x43\x01"), "application/x-freearc"},            // * ADDED
 	&exactSig{[]byte("BZh"), "application/x-bzip2"},                           // * ADDED
 	&exactSig{[]byte("BZ0"), "application/x-bzip"},                            // * ADDED
+	&exactSig{[]byte("zPQ"), "application/x-zpaq"},                            // * ADDED
+	&exactSig{[]byte("7kSt"), "application/x-zpaq"},                           // * ADDED
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"),
+		pat:  []byte("\x00\x00\x00\x00\x00\x00\x00\x2A\x2A\x41\x43\x45\x2A\x2A"),
+		ct:   "application/x-ace-compressed",
+	}, // * ADDED
 
 	// ! Executables
 	&exactSig{[]byte("\x4d\x5a"), "application/vnd.microsoft.portable-executable"}, // * ADDED
