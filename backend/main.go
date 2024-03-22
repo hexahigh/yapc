@@ -40,7 +40,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.8"
+const version = "2.5.9"
 
 var (
 	dataDir    = flag.String("d", "./data", "Folder to store files")
@@ -254,6 +254,16 @@ func handleExists(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStore(w http.ResponseWriter, r *http.Request) {
+	type StoreResponse struct {
+		SHA256 string `json:"sha256"`
+		SHA1   string `json:"sha1"`
+		MD5    string `json:"md5"`
+		CRC32  string `json:"crc32"`
+		AHash  string `json:"ahash"`
+		DHash  string `json:"dhash"`
+		Type   string `json:"type"`
+	}
+
 	// Create a context with a timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel() // Make sure to cancel the context when the function returns
@@ -324,16 +334,6 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		filename += ".zst"
 	}
 
-	// Check if file already exists
-	_, err = os.Stat(filename)
-	if err == nil {
-		// File already exists, return the JSON object with all hashes
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(hashes)
-		return
-	}
-
 	// Get the filetype based on magic number
 	logLevelln(1, "Getting filetype")
 	contentType := sniff.DetectContentType(buf.Bytes())
@@ -371,6 +371,25 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	// Check if file already exists
+	_, err = os.Stat(filename)
+	if err == nil {
+		// File already exists, return the JSON object with all hashes
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := StoreResponse{
+			SHA256: hashes["sha256"],
+			SHA1:   hashes["sha1"],
+			MD5:    hashes["md5"],
+			CRC32:  hashes["crc32"],
+			AHash:  hashes["ahash"],
+			DHash:  hashes["dhash"],
+			Type:   contentType,
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	logLevelln(1, "Saving file")
 
 	newFile, err := os.Create(filename)
@@ -400,7 +419,17 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(hashes)
+	response := StoreResponse{
+		SHA256: hashes["sha256"],
+		SHA1:   hashes["sha1"],
+		MD5:    hashes["md5"],
+		CRC32:  hashes["crc32"],
+		AHash:  hashes["ahash"],
+		DHash:  hashes["dhash"],
+		Type:   contentType,
+	}
+
+	json.NewEncoder(w).Encode(response)
 
 	// Before returning, check if the context was canceled due to a timeout
 	select {
