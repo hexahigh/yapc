@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"syscall"
@@ -40,7 +41,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.5.9"
+const version = "2.6.0"
 
 var (
 	dataDir    = flag.String("d", "./data", "Folder to store files")
@@ -60,7 +61,6 @@ var (
 	printLevel = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
 )
 
-var downloadSpeeds []float64
 var db *sql.DB
 var logger *log.Logger
 
@@ -127,82 +127,6 @@ func main() {
 	http.HandleFunc("/shorten", handleShorten)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
-}
-
-func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-}
-
-func onStart() {
-	// Check if data directory exists
-	_, err := os.Stat(*dataDir)
-	if os.IsNotExist(err) {
-		// Create data directory
-		err := os.Mkdir(*dataDir, 0755)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	// Check if there are uncompressed files and compression is on and vice versa
-	files, err := os.ReadDir(*dataDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, file := range files {
-		if filepath.Ext(file.Name()) != ".zst" && *compress {
-			// File is not compressed and compression is on, warn the user
-			log.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
-		} else if filepath.Ext(file.Name()) == ".zst" && !*compress {
-			// File is compressed and compression is off, warn the user
-			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
-		}
-	}
-}
-
-func getTotalDiskSpace(path string) (uint64, error) {
-	var stat syscall.Statfs_t
-	err := syscall.Statfs(path, &stat)
-	if err != nil {
-		return 0, err
-	}
-	return stat.Blocks * uint64(stat.Bsize), nil
-}
-func getAvailableDiskSpace(path string) (uint64, error) {
-	var stat syscall.Statfs_t
-	err := syscall.Statfs(path, &stat)
-	if err != nil {
-		return 0, err
-	}
-	return stat.Bavail * uint64(stat.Bsize), nil
-}
-func initDB() {
-	// Create table if it does not exist
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
-		id VARCHAR(255) PRIMARY KEY,
-		url TEXT NOT NULL,
-		hits INTEGER
-	)`)
-	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
-	}
-	// Create data table
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS data (
-		id VARCHAR(255) PRIMARY KEY,
-		sha256 TEXT NOT NULL,
-		sha1 TEXT NOT NULL,
-		md5 TEXT NOT NULL,
-		crc32 TEXT NOT NULL,
-		ahash TEXT,
-		dhash TEXT,
-		type TEXT,
-		uploaded INTEGER NOT NULL
-	)`)
-	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
-	}
 }
 
 func handleExists(w http.ResponseWriter, r *http.Request) {
@@ -646,16 +570,8 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 
 	percentageUsed := float64(totalSize) / float64(totalSpace) * 100
 
-	var averageSpeed float64
-	if len(downloadSpeeds) > 0 {
-		var totalSpeed float64
-		for _, speed := range downloadSpeeds {
-			totalSpeed += speed
-		}
-		averageSpeed = totalSpeed / float64(len(downloadSpeeds))
-	} else {
-		averageSpeed = 0
-	}
+	cores := getCores()
+	memInfo := getMem()
 
 	response := map[string]interface{}{
 		"totalFiles":        len(files),
@@ -666,7 +582,8 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 		"compression":       *compress,
 		"compression_level": *level,
 		"version":           version,
-		"averageSpeed":      averageSpeed,
+		"cores":             cores,
+		"memory":            memInfo,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -919,4 +836,90 @@ func logLevelln(l int, s string) {
 	if *printLevel >= l {
 		logger.Println(s)
 	}
+}
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func onStart() {
+	// Check if data directory exists
+	_, err := os.Stat(*dataDir)
+	if os.IsNotExist(err) {
+		// Create data directory
+		err := os.Mkdir(*dataDir, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	// Check if there are uncompressed files and compression is on and vice versa
+	files, err := os.ReadDir(*dataDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		if filepath.Ext(file.Name()) != ".zst" && *compress {
+			// File is not compressed and compression is on, warn the user
+			log.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
+		} else if filepath.Ext(file.Name()) == ".zst" && !*compress {
+			// File is compressed and compression is off, warn the user
+			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
+		}
+	}
+}
+
+func getTotalDiskSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+	return stat.Blocks * uint64(stat.Bsize), nil
+}
+func getAvailableDiskSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+	return stat.Bavail * uint64(stat.Bsize), nil
+}
+func initDB() {
+	// Create table if it does not exist
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
+		id VARCHAR(255) PRIMARY KEY,
+		url TEXT NOT NULL,
+		hits INTEGER
+	)`)
+	if err != nil {
+		log.Fatalf("Failed to create table: %v", err)
+	}
+	// Create data table
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS data (
+		id VARCHAR(255) PRIMARY KEY,
+		sha256 TEXT NOT NULL,
+		sha1 TEXT NOT NULL,
+		md5 TEXT NOT NULL,
+		crc32 TEXT NOT NULL,
+		ahash TEXT,
+		dhash TEXT,
+		type TEXT,
+		uploaded INTEGER NOT NULL
+	)`)
+	if err != nil {
+		log.Fatalf("Failed to create table: %v", err)
+	}
+}
+
+func getCores() int {
+	return runtime.NumCPU()
+}
+
+func getMem() runtime.MemStats {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return memStats
 }
