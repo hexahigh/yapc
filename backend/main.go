@@ -41,12 +41,12 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.6.1"
+const version = "2.6.2"
 
 var (
 	dataDir    = flag.String("d", "./data", "Folder to store files")
 	port       = flag.Int("p", 8080, "Port to listen on")
-	compress   = flag.Bool("c", false, "Enable compression")
+	compress   = flag.Bool("c", false, "Compression is deprecated and will be removed in a future version")
 	level      = flag.Int("l", 3, "Compression level")
 	dbType     = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
 	dbPass     = flag.String("db:pass", "", "Database password (Unused for sqlite)")
@@ -267,8 +267,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		// Decode the image from the buffer
 		img, _, err := image.Decode(bytes.NewReader(buf.Bytes()))
 		if err != nil {
-			http.Error(w, "Failed to decode image", http.StatusInternalServerError)
-			return
+			logger.Println("Failed to decode image", err)
 		}
 
 		// Choose the hash length
@@ -277,15 +276,13 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		// Hash the image with Ahash
 		ahashBytes, err := hash.Ahash(img, hashLen)
 		if err != nil {
-			http.Error(w, "Failed to generate Ahash", http.StatusInternalServerError)
-			return
+			logger.Println("Failed to generate Ahash", err)
 		}
 
 		// Hash the image with Dhash
 		dhashBytes, err := hash.Dhash(img, hashLen)
 		if err != nil {
-			http.Error(w, "Failed to generate Dhash", http.StatusInternalServerError)
-			return
+			logger.Println("Failed to generate Dhash", err)
 		}
 		dHash := hex.EncodeToString(dhashBytes)
 		aHash := hex.EncodeToString(ahashBytes)
