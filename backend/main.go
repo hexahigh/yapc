@@ -37,17 +37,14 @@ import (
 
 	"github.com/hexahigh/yapc/backend/lib/hash"
 	"github.com/hexahigh/yapc/backend/lib/sniff"
-	"github.com/klauspost/compress/zstd"
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.7.0"
+const version = "3.0.0"
 
 var (
 	dataDir    = flag.String("d", "./data", "Folder to store files")
 	port       = flag.Int("p", 8080, "Port to listen on")
-	compress   = flag.Bool("c", false, "Compression is deprecated and will be removed in a future version")
-	level      = flag.Int("l", 3, "Compression level")
 	dbType     = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
 	dbPass     = flag.String("db:pass", "", "Database password (Unused for sqlite)")
 	dbUser     = flag.String("db:user", "root", "Database user (Unused for sqlite)")
@@ -254,9 +251,6 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 
 	// Use SHA256 hash as the filename
 	filename := *dataDir + "/" + hashes["sha256"]
-	if *compress {
-		filename += ".zst"
-	}
 
 	// Get the filetype based on magic number
 	logLevelln(1, "Getting filetype")
@@ -379,9 +373,6 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := filepath.Join(*dataDir, hash)
-	if *compress {
-		filename += ".zst"
-	}
 
 	fmt.Println("GET", r.URL.Path)
 	fmt.Println("Attempting to get", filename)
@@ -399,25 +390,10 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	if *compress {
-		decoder, err := zstd.NewReader(file)
-		if err != nil {
-			http.Error(w, "Failed to create decoder", http.StatusInternalServerError)
-			return
-		}
-		defer decoder.Close()
-
-		_, err = io.Copy(w, decoder.IOReadCloser())
-		if err != nil {
-			http.Error(w, "Failed to send file", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		_, err = io.Copy(w, file)
-		if err != nil {
-			http.Error(w, "Failed to send file", http.StatusInternalServerError)
-			return
-		}
+	_, err = io.Copy(w, file)
+	if err != nil {
+		http.Error(w, "Failed to send file", http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -466,9 +442,6 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 
 	// Construct the filename using the SHA256 hash
 	filename = filepath.Join(*dataDir, sha256Hash)
-	if *compress {
-		filename += ".zst"
-	}
 
 	fmt.Println("GET", r.URL.Path)
 	fmt.Println("Attempting to get", filename)
@@ -506,25 +479,10 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 	// Set the content disposition to attachment with the provided filename
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filenameDown))
 
-	if *compress {
-		decoder, err := zstd.NewReader(file)
-		if err != nil {
-			http.Error(w, "Failed to create decoder", http.StatusInternalServerError)
-			return
-		}
-		defer decoder.Close()
-
-		_, err = io.Copy(w, decoder.IOReadCloser())
-		if err != nil {
-			http.Error(w, "Failed to send file", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		_, err = io.Copy(w, file)
-		if err != nil {
-			http.Error(w, "Failed to send file", http.StatusInternalServerError)
-			return
-		}
+	_, err = io.Copy(w, file)
+	if err != nil {
+		http.Error(w, "Failed to send file", http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -571,16 +529,14 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	memInfo := getMem()
 
 	response := map[string]interface{}{
-		"totalFiles":        len(files),
-		"totalSize":         totalSize,
-		"totalSpace":        totalSpace,
-		"availableSpace":    availableSpace,
-		"percentageUsed":    percentageUsed,
-		"compression":       *compress,
-		"compression_level": *level,
-		"version":           version,
-		"cores":             cores,
-		"memory":            memInfo,
+		"totalFiles":     len(files),
+		"totalSize":      totalSize,
+		"totalSpace":     totalSpace,
+		"availableSpace": availableSpace,
+		"percentageUsed": percentageUsed,
+		"version":        version,
+		"cores":          cores,
+		"memory":         memInfo,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -736,9 +692,6 @@ func dbFixer() {
 
 		// Construct the file path
 		filePath := filepath.Join(*dataDir, id)
-		if *compress {
-			filePath += ".zst"
-		}
 
 		// Check if the file exists
 		_, err := os.Stat(filePath)
@@ -790,9 +743,6 @@ func resniff() {
 
 		// Construct the file path
 		filePath := filepath.Join(*dataDir, id)
-		if *compress {
-			filePath += ".zst"
-		}
 
 		// Open the file
 		file, err := os.Open(filePath)
@@ -852,21 +802,6 @@ func onStart() {
 		err := os.Mkdir(*dataDir, 0755)
 		if err != nil {
 			log.Fatal(err)
-		}
-	}
-	// Check if there are uncompressed files and compression is on and vice versa
-	files, err := os.ReadDir(*dataDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, file := range files {
-		if filepath.Ext(file.Name()) != ".zst" && *compress {
-			// File is not compressed and compression is on, warn the user
-			log.Printf("Warning: File %s is not compressed, but compression is enabled. You may want to compress this file.\n", file.Name())
-		} else if filepath.Ext(file.Name()) == ".zst" && !*compress {
-			// File is compressed and compression is off, warn the user
-			log.Printf("Warning: File %s is compressed, but compression is disabled. You may want to decompress this file.\n", file.Name())
 		}
 	}
 }
