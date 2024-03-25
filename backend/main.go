@@ -41,7 +41,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "2.6.2"
+const version = "2.7.0"
 
 var (
 	dataDir    = flag.String("d", "./data", "Folder to store files")
@@ -652,8 +652,11 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get current unix time
+	uploadTime := time.Now().Unix()
+
 	// URL is not in the database, insert it with hits set to  0
-	_, err = db.Exec("INSERT INTO urls (id, url, hits) VALUES (?, ?,  0)", id, request.URL)
+	_, err = db.Exec("INSERT INTO urls (id, url, hits, uploaded) VALUES (?, ?, 0, ?)", id, request.URL, uploadTime)
 	if err != nil {
 		response.Success = false
 		response.Error = "Failed to insert URL into database: " + err.Error()
@@ -889,7 +892,8 @@ func initDB() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
 		id VARCHAR(255) PRIMARY KEY,
 		url TEXT NOT NULL,
-		hits INTEGER
+		hits INTEGER,
+		uploaded INTEGER
 	)`)
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
