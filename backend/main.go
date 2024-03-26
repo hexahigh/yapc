@@ -59,6 +59,8 @@ var (
 	printLevel = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
 )
 
+const dbFilenamesSeperator = "||!??|"
+
 var db *sql.DB
 var logger *log.Logger
 
@@ -312,7 +314,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 
 		// Append the new filename to the existing list of filenames
-		_, err = db.Exec(`UPDATE data SET filenames = CONCAT(filenames, ?) WHERE id = ?`, "|||"+origFileName, hashes["sha256"])
+		_, err = db.Exec(`UPDATE data SET filenames = CONCAT(filenames, ?) WHERE id = ?`, dbFilenamesSeperator+origFileName, hashes["sha256"])
 		if err != nil {
 			http.Error(w, "Failed to update filename in database", http.StatusInternalServerError)
 			return
