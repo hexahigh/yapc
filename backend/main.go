@@ -744,6 +744,8 @@ func dbFixer() {
 		log.Fatalf("Error iterating over rows: %v", err)
 	}
 
+	logLevelln(0, "Looking for duplicate entries...")
+
 	// Query the database to find all IDs that have duplicates
 	rows, err = db.Query(`
         SELECT id, COUNT(*) as count
@@ -764,25 +766,25 @@ func dbFixer() {
 			log.Fatalf("Failed to scan row for duplicates: %v", err)
 		}
 
-		// Query the database to find the entry with the lowest "uploaded" value for the duplicate ID
-		var lowestUploaded int64
+		// Query the database to find the entry with the highest "uploaded" value for the duplicate ID
+		var highestUploaded int64
 		err = db.QueryRow(`
-            SELECT MIN(uploaded)
+            SELECT MAX(uploaded)
             FROM data
             WHERE id = ?
-        `, id).Scan(&lowestUploaded)
+        `, id).Scan(&highestUploaded)
 		if err != nil {
-			log.Fatalf("Failed to find the entry with the lowest 'uploaded' value for ID %s: %v", id, err)
+			log.Fatalf("Failed to find the entry with the highest 'uploaded' value for ID %s: %v", id, err)
 		}
 
-		// Delete the entry with the lowest "uploaded" value
+		// Delete the entry with the highest "uploaded" value
 		if !*fixDb_dry {
-			_, err := db.Exec("DELETE FROM data WHERE id = ? AND uploaded = ?", id, lowestUploaded)
+			_, err := db.Exec("DELETE FROM data WHERE id = ? AND uploaded = ?", id, highestUploaded)
 			if err != nil {
-				log.Printf("Failed to delete entry with ID %s and lowest 'uploaded' value: %v", id, err)
+				log.Printf("Failed to delete entry with ID %s and highest 'uploaded' value: %v", id, err)
 			}
 		}
-		log.Printf("Deleted entry with ID %s and lowest 'uploaded' value", id)
+		log.Printf("Deleted entry with ID %s and highest 'uploaded' value", id)
 	}
 
 	if err := rows.Err(); err != nil {
