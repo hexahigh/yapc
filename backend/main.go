@@ -743,55 +743,6 @@ func dbFixer() {
 	if err := rows.Err(); err != nil {
 		log.Fatalf("Error iterating over rows: %v", err)
 	}
-
-	logLevelln(0, "Looking for duplicate entries...")
-
-	// Query the database to find all IDs that have duplicates
-	rows, err = db.Query(`
-        SELECT id, COUNT(*) as count
-        FROM data
-        GROUP BY id
-        HAVING count > 1
-    `)
-	if err != nil {
-		log.Fatalf("Failed to query database for duplicates: %v", err)
-	}
-	defer rows.Close()
-
-	// Iterate over the rows to find duplicates
-	for rows.Next() {
-		var id string
-		var count int
-		if err := rows.Scan(&id, &count); err != nil {
-			log.Fatalf("Failed to scan row for duplicates: %v", err)
-		}
-
-		// Query the database to find the entry with the highest "uploaded" value for the duplicate ID
-		var highestUploaded int64
-		err = db.QueryRow(`
-            SELECT MAX(uploaded)
-            FROM data
-            WHERE id = ?
-        `, id).Scan(&highestUploaded)
-		if err != nil {
-			log.Fatalf("Failed to find the entry with the highest 'uploaded' value for ID %s: %v", id, err)
-		}
-
-		// Delete the entry with the highest "uploaded" value
-		if !*fixDb_dry {
-			_, err := db.Exec("DELETE FROM data WHERE id = ? AND uploaded = ?", id, highestUploaded)
-			if err != nil {
-				log.Printf("Failed to delete entry with ID %s and highest 'uploaded' value: %v", id, err)
-			}
-		}
-		log.Printf("Deleted entry with ID %s and highest 'uploaded' value", id)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Fatalf("Error iterating over rows for duplicates: %v", err)
-	}
-
-	logLevelln(0, "Finished cleaning database")
 }
 
 func isValidURL(str string) bool {
