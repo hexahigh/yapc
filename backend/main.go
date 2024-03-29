@@ -44,19 +44,21 @@ import (
 const version = "3.1.0"
 
 var (
-	dataDir    = flag.String("d", "./data", "Folder to store files")
-	port       = flag.Int("p", 8080, "Port to listen on")
-	dbType     = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
-	dbPass     = flag.String("db:pass", "", "Database password (Unused for sqlite)")
-	dbUser     = flag.String("db:user", "root", "Database user (Unused for sqlite)")
-	dbHost     = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
-	dbDb       = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
-	dbFile     = flag.String("db:file", "./data/yapc.db", "SQLite database file")
-	dbConns    = flag.Int("db:conns", 20, "Mysql database max open connections")
-	fixDb      = flag.Bool("fixdb", false, "Fix the database")
-	fixDb_dry  = flag.Bool("fixdb:dry", false, "Dry run fixdb")
-	doResniff  = flag.Bool("resniff", false, "Resniff content-types")
-	printLevel = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
+	dataDir        = flag.String("d", "./data", "Folder to store files")
+	port           = flag.Int("p", 8080, "Port to listen on")
+	dbType         = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
+	dbPass         = flag.String("db:pass", "", "Database password (Unused for sqlite)")
+	dbUser         = flag.String("db:user", "root", "Database user (Unused for sqlite)")
+	dbHost         = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
+	dbDb           = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
+	dbFile         = flag.String("db:file", "./data/yapc.db", "SQLite database file")
+	dbConns        = flag.Int("db:conns", 20, "Mysql database max open connections")
+	fixDb          = flag.Bool("fixdb", false, "Fix the database")
+	fixDb_dry      = flag.Bool("fixdb:dry", false, "Dry run fixdb")
+	doResniff      = flag.Bool("resniff", false, "Resniff content-types")
+	printLevel     = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
+	disableUpload  = flag.Bool("disable:upload", false, "Disable uploading")
+	disableShorten = flag.Bool("disable:shorten", false, "Disable url shortening")
 )
 
 const dbFilenamesSeperator = "||!??|"
@@ -117,14 +119,20 @@ func main() {
 	fmt.Println("Listening on port", *port)
 
 	http.HandleFunc("/exists", handleExists)
-	http.HandleFunc("/store", handleStore)
 	http.HandleFunc("/get/", handleGet)
 	http.HandleFunc("/get2/", handleGet2)
 	http.HandleFunc("/stats", handleStats)
 	http.HandleFunc("/ping", handlePing)
 	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/u/", handleU)
-	http.HandleFunc("/shorten", handleShorten)
+
+	if !*disableUpload {
+		http.HandleFunc("/store", handleStore)
+	}
+
+	if !*disableShorten {
+		http.HandleFunc("/shorten", handleShorten)
+	}
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
@@ -552,14 +560,16 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	memInfo := getMem()
 
 	response := map[string]interface{}{
-		"totalFiles":     len(files),
-		"totalSize":      totalSize,
-		"totalSpace":     totalSpace,
-		"availableSpace": availableSpace,
-		"percentageUsed": percentageUsed,
-		"version":        version,
-		"cores":          cores,
-		"memory":         memInfo,
+		"uploadingDisabled":  *disableUpload,
+		"shorteningDisabled": *disableShorten,
+		"totalFiles":         len(files),
+		"totalSize":          totalSize,
+		"totalSpace":         totalSpace,
+		"availableSpace":     availableSpace,
+		"percentageUsed":     percentageUsed,
+		"version":            version,
+		"cores":              cores,
+		"memory":             memInfo,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -696,9 +706,9 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 }
 
 func dbFixer() {
-	log.Println("Cleaning database")
+	logLevelln(0, "Cleaning database")
 
-	log.Println("Looking for missing files...")
+	logLevelln(0, "Looking for missing files...")
 	// Query the database to get all IDs
 	rows, err := db.Query("SELECT id FROM data")
 	if err != nil {
@@ -733,7 +743,55 @@ func dbFixer() {
 	if err := rows.Err(); err != nil {
 		log.Fatalf("Error iterating over rows: %v", err)
 	}
+
+	// Query the database to find all IDs that have duplicates
+	rows, err = db.Query(`
+        SELECT id, COUNT(*) as count
+        FROM data
+        GROUP BY id
+        HAVING count > 1
+    `)
+	if err != nil {
+		log.Fatalf("Failed to query database for duplicates: %v", err)
+	}
+	defer rows.Close()
+
+	// Iterate over the rows to find duplicates
+	for rows.Next() {
+		var id string
+		var count int
+		if err := rows.Scan(&id, &count); err != nil {
+			log.Fatalf("Failed to scan row for duplicates: %v", err)
+		}
+
+		// Query the database to find the entry with the lowest "uploaded" value for the duplicate ID
+		var lowestUploaded int64
+		err = db.QueryRow(`
+            SELECT MIN(uploaded)
+            FROM data
+            WHERE id = ?
+        `, id).Scan(&lowestUploaded)
+		if err != nil {
+			log.Fatalf("Failed to find the entry with the lowest 'uploaded' value for ID %s: %v", id, err)
+		}
+
+		// Delete the entry with the lowest "uploaded" value
+		if !*fixDb_dry {
+			_, err := db.Exec("DELETE FROM data WHERE id = ? AND uploaded = ?", id, lowestUploaded)
+			if err != nil {
+				log.Printf("Failed to delete entry with ID %s and lowest 'uploaded' value: %v", id, err)
+			}
+		}
+		log.Printf("Deleted entry with ID %s and lowest 'uploaded' value", id)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Fatalf("Error iterating over rows for duplicates: %v", err)
+	}
+
+	logLevelln(0, "Finished cleaning database")
 }
+
 func isValidURL(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
