@@ -306,9 +306,15 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	absolutePath, err := filepath.Abs(filename)
+	if err != nil {
+		logLevelln(0, "Failed to get absolute path")
+	}
+
 	// Run the onupload command
 	args := UploadCommandRunner{
 		Filepath:    filename,
+		Fullpath:    absolutePath,
 		Sha256:      hashes["sha256"],
 		Sha1:        hashes["sha1"],
 		Md5:         hashes["md5"],
@@ -317,6 +323,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		Dhash:       hashes["dhash"],
 		ContentType: contentType,
 	}
+
 	go runOnUpload(args)
 
 	// Check if file already exists
@@ -918,6 +925,7 @@ func runOnUpload(args UploadCommandRunner) {
 	modifiedCommand := *commandToRunOnUpload
 
 	modifiedCommand = strings.Replace(modifiedCommand, "{%FILEPATH%}", args.Filepath, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%FULLPATH%}", args.Fullpath, -1)
 	modifiedCommand = strings.Replace(modifiedCommand, "{%SHA256%}", args.Sha256, -1)
 	modifiedCommand = strings.Replace(modifiedCommand, "{%SHA1%}", args.Sha1, -1)
 	modifiedCommand = strings.Replace(modifiedCommand, "{%MD5%}", args.Md5, -1)

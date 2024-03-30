@@ -7,6 +7,7 @@ type DBData struct {
 
 type UploadCommandRunner struct {
 	Filepath    string
+	Fullpath    string
 	Sha256      string
 	Sha1        string
 	Md5         string
