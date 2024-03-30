@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -41,24 +42,25 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "3.1.0"
+const version = "3.2.0"
 
 var (
-	dataDir        = flag.String("d", "./data", "Folder to store files")
-	port           = flag.Int("p", 8080, "Port to listen on")
-	dbType         = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
-	dbPass         = flag.String("db:pass", "", "Database password (Unused for sqlite)")
-	dbUser         = flag.String("db:user", "root", "Database user (Unused for sqlite)")
-	dbHost         = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
-	dbDb           = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
-	dbFile         = flag.String("db:file", "./data/yapc.db", "SQLite database file")
-	dbConns        = flag.Int("db:conns", 20, "Mysql database max open connections")
-	fixDb          = flag.Bool("fixdb", false, "Fix the database")
-	fixDb_dry      = flag.Bool("fixdb:dry", false, "Dry run fixdb")
-	doResniff      = flag.Bool("resniff", false, "Resniff content-types")
-	printLevel     = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
-	disableUpload  = flag.Bool("disable:upload", false, "Disable uploading")
-	disableShorten = flag.Bool("disable:shorten", false, "Disable url shortening")
+	dataDir              = flag.String("d", "./data", "Folder to store files")
+	port                 = flag.Int("p", 8080, "Port to listen on")
+	dbType               = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
+	dbPass               = flag.String("db:pass", "", "Database password (Unused for sqlite)")
+	dbUser               = flag.String("db:user", "root", "Database user (Unused for sqlite)")
+	dbHost               = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
+	dbDb                 = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
+	dbFile               = flag.String("db:file", "./data/yapc.db", "SQLite database file")
+	dbConns              = flag.Int("db:conns", 20, "Mysql database max open connections")
+	fixDb                = flag.Bool("fixdb", false, "Fix the database")
+	fixDb_dry            = flag.Bool("fixdb:dry", false, "Dry run fixdb")
+	doResniff            = flag.Bool("resniff", false, "Resniff content-types")
+	printLevel           = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
+	disableUpload        = flag.Bool("disable:upload", false, "Disable uploading")
+	disableShorten       = flag.Bool("disable:shorten", false, "Disable url shortening")
+	commandToRunOnUpload = flag.String("run:upload", "", "Run a command on upload. View run.md for more info")
 )
 
 const dbFilenamesSeperator = "||!??|"
@@ -303,6 +305,19 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		hashes["ahash"] = aHash
 
 	}
+
+	// Run the onupload command
+	args := UploadCommandRunner{
+		Filepath:    filename,
+		Sha256:      hashes["sha256"],
+		Sha1:        hashes["sha1"],
+		Md5:         hashes["md5"],
+		Crc32:       hashes["crc32"],
+		Ahash:       hashes["ahash"],
+		Dhash:       hashes["dhash"],
+		ContentType: contentType,
+	}
+	go runOnUpload(args)
 
 	// Check if file already exists
 	_, err = os.Stat(filename)
@@ -893,4 +908,32 @@ func getMem() runtime.MemStats {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	return memStats
+}
+
+func runOnUpload(args UploadCommandRunner) {
+	if *commandToRunOnUpload == "" {
+		return
+	}
+
+	modifiedCommand := *commandToRunOnUpload
+
+	modifiedCommand = strings.Replace(modifiedCommand, "{%FILEPATH%}", args.Filepath, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%SHA256%}", args.Sha256, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%SHA1%}", args.Sha1, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%MD5%}", args.Md5, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%CRC32%}", args.Crc32, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%AHASH%}", args.Ahash, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%DHASH%}", args.Dhash, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%CONTENTTYPE%}", args.ContentType, -1)
+
+	// Split the command into executable and arguments
+	parts := strings.Fields(modifiedCommand)
+	cmd := exec.Command(parts[0], parts[1:]...)
+
+	logLevelln(0, "Running command: "+modifiedCommand)
+
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("Failed to execute command: %v\n", err)
+	}
 }
