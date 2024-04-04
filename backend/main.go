@@ -42,7 +42,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "3.2.0"
+const version = "3.2.1"
 
 var (
 	dataDir              = flag.String("d", "./data", "Folder to store files")
@@ -61,6 +61,7 @@ var (
 	disableUpload        = flag.Bool("disable:upload", false, "Disable uploading")
 	disableShorten       = flag.Bool("disable:shorten", false, "Disable url shortening")
 	commandToRunOnUpload = flag.String("run:upload", "", "Run a command on upload. View run.md for more info")
+	waitForIt            = flag.Bool("wfi", false, "Wait for the database to be initialized")
 )
 
 const dbFilenamesSeperator = "||!??|"
@@ -83,9 +84,23 @@ func main() {
 	var err error
 	switch *dbType {
 	case "mysql":
-		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
-		if err != nil {
-			log.Fatal(err)
+
+		if *waitForIt {
+			for {
+				db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
+				if err != nil {
+					log.Printf("Failed to connect to database: %v", err)
+					time.Sleep(time.Second * 5)
+					continue
+				}
+				break
+			}
+		} else {
+			db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
+			if err != nil {
+				log.Printf("Failed to connect to database: %v", err)
+				os.Exit(1)
+			}
 		}
 		db.SetConnMaxLifetime(time.Minute * 3)
 		db.SetConnMaxIdleTime(time.Minute * 2)
