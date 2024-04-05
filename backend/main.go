@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto"
 	"database/sql"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -42,7 +43,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "3.2.1"
+const version = "4.0.0"
 
 var (
 	dataDir              = flag.String("d", "./data", "Folder to store files")
@@ -62,12 +63,16 @@ var (
 	disableShorten       = flag.Bool("disable:shorten", false, "Disable url shortening")
 	commandToRunOnUpload = flag.String("run:upload", "", "Run a command on upload. View run.md for more info")
 	waitForIt            = flag.Bool("wfi", false, "Wait for the database to be initialized")
+	printLicense         = flag.Bool("l", false, "Print license")
 )
 
 const dbFilenamesSeperator = "||!??|"
 
 var db *sql.DB
 var logger *log.Logger
+
+//go:embed LICENSE
+var licenseFS embed.FS
 
 func main() {
 
@@ -77,6 +82,16 @@ func main() {
 	ff.Parse(flag.CommandLine, os.Args[1:], ff.WithEnvVarPrefix("YAPC"))
 
 	logger = log.New(os.Stdout, "", log.LstdFlags)
+
+	if *printLicense {
+		license, err := fs.ReadFile(licenseFS, "LICENSE")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(string(license))
+		os.Exit(0)
+	}
+
 	fmt.Println("Starting")
 
 	logLevelln(1, "Initializing database")
@@ -468,36 +483,47 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 
 	var filename string
 
+	type Params struct {
+		Hash        string
+		Ext         string
+		Filename    string
+		ContentType string
+	}
+
 	// Parse the query parameters
 	params := r.URL.Query()
-	hash := params.Get("h")
-	ext := params.Get("e")
-	filenameDown := params.Get("f")
+
+	p := Params{
+		Hash:        params.Get("h"),
+		Ext:         params.Get("e"),
+		Filename:    params.Get("f"),
+		ContentType: params.Get("ct"),
+	}
 
 	// If no hash is provided, default to '0'
-	if hash == "" {
+	if p.Hash == "" {
 		http.Error(w, "No hash provided", http.StatusBadRequest)
 		return
 	}
 
-	if strings.Contains(hash, "..") {
+	if strings.Contains(p.Hash, "..") {
 		http.Error(w, "Invalid hash, did you try to access files outside of the data folder?", http.StatusBadRequest)
 		return
 	}
 
 	// If no extension is provided, default to 'bin'
-	if ext == "" {
-		ext = "bin"
+	if p.Ext == "" {
+		p.Ext = "bin"
 	}
 
 	// If no filename is provided, default to 'file.bin'
-	if filenameDown == "" {
-		filenameDown = "file.bin"
+	if p.Filename == "" {
+		p.Filename = "file.bin"
 	}
 
 	// Query the database for the SHA256 hash associated with the provided hash
 	var sha256Hash string
-	err := db.QueryRow("SELECT sha256 FROM data WHERE sha256 = ? OR sha1 = ? OR md5 = ? OR crc32 = ?", hash, hash, hash, hash).Scan(&sha256Hash)
+	err := db.QueryRow("SELECT sha256 FROM data WHERE sha256 = ? OR sha1 = ? OR md5 = ? OR crc32 = ?", p.Hash, p.Hash, p.Hash, p.Hash).Scan(&sha256Hash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.NotFound(w, r)
@@ -537,15 +563,19 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Length", strconv.FormatInt(fileSize, 10))
 
-	// Set the content type based on the file extension
-	contentType := mime.TypeByExtension(ext)
-	if contentType == "" {
-		contentType = "application/octet-stream"
+	if p.ContentType == "" {
+		// Set the content type based on the file extension
+		contentType := mime.TypeByExtension(p.Ext)
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", contentType)
+	} else {
+		w.Header().Set("Content-Type", p.ContentType)
 	}
-	w.Header().Set("Content-Type", contentType)
 
 	// Set the content disposition to attachment with the provided filename
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filenameDown))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, p.Filename))
 
 	_, err = io.Copy(w, file)
 	if err != nil {
