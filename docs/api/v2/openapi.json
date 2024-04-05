@@ -252,8 +252,11 @@
                       "version": {
                         "type": "string"
                       },
-                      "averageSpeed": {
-                        "type": "number"
+                      "cores": {
+                        "type": "integer"
+                      },
+                      "memory": {
+                        "type":"object"
                       }
                     }
                   }

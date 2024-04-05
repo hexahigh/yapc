@@ -19,8 +19,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -40,26 +43,31 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "3.0.0"
+const version = "4.0.0"
 
 var (
-	dataDir      = flag.String("d", "./data", "Folder to store files")
-	port         = flag.Int("p", 8080, "Port to listen on")
-	dbType       = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
-	dbPass       = flag.String("db:pass", "", "Database password (Unused for sqlite)")
-	dbUser       = flag.String("db:user", "root", "Database user (Unused for sqlite)")
-	dbHost       = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
-	dbDb         = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
-	dbFile       = flag.String("db:file", "./data/yapc.db", "SQLite database file")
-	dbConns      = flag.Int("db:conns", 20, "Mysql database max open connections")
-	fixDb        = flag.Bool("fixdb", false, "Fix the database")
-	fixDb_dry    = flag.Bool("fixdb:dry", false, "Dry run fixdb")
-	doResniff    = flag.Bool("resniff", false, "Resniff content-types")
-	printLevel   = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
-	printLicense = flag.Bool("l", false, "Print license")
+	dataDir              = flag.String("d", "./data", "Folder to store files")
+	port                 = flag.Int("p", 8080, "Port to listen on")
+	dbType               = flag.String("db", "sqlite", "Database type (sqlite or mysql)")
+	dbPass               = flag.String("db:pass", "", "Database password (Unused for sqlite)")
+	dbUser               = flag.String("db:user", "root", "Database user (Unused for sqlite)")
+	dbHost               = flag.String("db:host", "localhost:3306", "Database host (Unused for sqlite)")
+	dbDb                 = flag.String("db:db", "yapc", "Database name (Unused for sqlite)")
+	dbFile               = flag.String("db:file", "./data/yapc.db", "SQLite database file")
+	dbConns              = flag.Int("db:conns", 20, "Mysql database max open connections")
+	fixDb                = flag.Bool("fixdb", false, "Fix the database")
+	fixDb_dry            = flag.Bool("fixdb:dry", false, "Dry run fixdb")
+	doResniff            = flag.Bool("resniff", false, "Resniff content-types")
+	printLevel           = flag.Int("printlevel", 0, "Print/verbosity level (0-3)")
+	disableUpload        = flag.Bool("disable:upload", false, "Disable uploading")
+	disableShorten       = flag.Bool("disable:shorten", false, "Disable url shortening")
+	commandToRunOnUpload = flag.String("run:upload", "", "Run a command on upload. View run.md for more info")
+	waitForIt            = flag.Bool("wfi", false, "Wait for the database to be initialized")
+	printLicense         = flag.Bool("l", false, "Print license")
 )
 
-var downloadSpeeds []float64
+const dbFilenamesSeperator = "||!??|"
+
 var db *sql.DB
 var logger *log.Logger
 
@@ -91,9 +99,23 @@ func main() {
 	var err error
 	switch *dbType {
 	case "mysql":
-		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
-		if err != nil {
-			log.Fatal(err)
+
+		if *waitForIt {
+			for {
+				db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
+				if err != nil {
+					log.Printf("Failed to connect to database: %v", err)
+					time.Sleep(time.Second * 5)
+					continue
+				}
+				break
+			}
+		} else {
+			db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", *dbUser, *dbPass, *dbHost, *dbDb))
+			if err != nil {
+				log.Printf("Failed to connect to database: %v", err)
+				os.Exit(1)
+			}
 		}
 		db.SetConnMaxLifetime(time.Minute * 3)
 		db.SetConnMaxIdleTime(time.Minute * 2)
@@ -129,77 +151,22 @@ func main() {
 	fmt.Println("Listening on port", *port)
 
 	http.HandleFunc("/exists", handleExists)
-	http.HandleFunc("/store", handleStore)
 	http.HandleFunc("/get/", handleGet)
 	http.HandleFunc("/get2/", handleGet2)
 	http.HandleFunc("/stats", handleStats)
 	http.HandleFunc("/ping", handlePing)
 	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/u/", handleU)
-	http.HandleFunc("/shorten", handleShorten)
+
+	if !*disableUpload {
+		http.HandleFunc("/store", handleStore)
+	}
+
+	if !*disableShorten {
+		http.HandleFunc("/shorten", handleShorten)
+	}
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
-}
-
-func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-}
-
-func onStart() {
-	// Check if data directory exists
-	_, err := os.Stat(*dataDir)
-	if os.IsNotExist(err) {
-		// Create data directory
-		err := os.Mkdir(*dataDir, 0755)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-func getTotalDiskSpace(path string) (uint64, error) {
-	var stat syscall.Statfs_t
-	err := syscall.Statfs(path, &stat)
-	if err != nil {
-		return 0, err
-	}
-	return stat.Blocks * uint64(stat.Bsize), nil
-}
-func getAvailableDiskSpace(path string) (uint64, error) {
-	var stat syscall.Statfs_t
-	err := syscall.Statfs(path, &stat)
-	if err != nil {
-		return 0, err
-	}
-	return stat.Bavail * uint64(stat.Bsize), nil
-}
-func initDB() {
-	// Create table if it does not exist
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
-		id VARCHAR(255) PRIMARY KEY,
-		url TEXT NOT NULL,
-		hits INTEGER
-	)`)
-	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
-	}
-	// Create data table
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS data (
-		id VARCHAR(255) PRIMARY KEY,
-		sha256 TEXT NOT NULL,
-		sha1 TEXT NOT NULL,
-		md5 TEXT NOT NULL,
-		crc32 TEXT NOT NULL,
-		ahash TEXT,
-		dhash TEXT,
-		type TEXT,
-		uploaded INTEGER NOT NULL
-	)`)
-	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
-	}
 }
 
 func handleExists(w http.ResponseWriter, r *http.Request) {
@@ -277,12 +244,19 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, _, err := r.FormFile("file")
+	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "Failed to retrieve file", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
+
+	// Get the file name
+	origFileName := fileHeader.Filename
+
+	if origFileName == "" || len(origFileName) > 1024 {
+		origFileName = "unknownOrTooLong"
+	}
 
 	// Create a buffer to hold the file data
 	buf := new(bytes.Buffer)
@@ -337,8 +311,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		// Decode the image from the buffer
 		img, _, err := image.Decode(bytes.NewReader(buf.Bytes()))
 		if err != nil {
-			http.Error(w, "Failed to decode image", http.StatusInternalServerError)
-			return
+			logger.Println("Failed to decode image", err)
 		}
 
 		// Choose the hash length
@@ -347,15 +320,13 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		// Hash the image with Ahash
 		ahashBytes, err := hash.Ahash(img, hashLen)
 		if err != nil {
-			http.Error(w, "Failed to generate Ahash", http.StatusInternalServerError)
-			return
+			logger.Println("Failed to generate Ahash", err)
 		}
 
 		// Hash the image with Dhash
 		dhashBytes, err := hash.Dhash(img, hashLen)
 		if err != nil {
-			http.Error(w, "Failed to generate Dhash", http.StatusInternalServerError)
-			return
+			logger.Println("Failed to generate Dhash", err)
 		}
 		dHash := hex.EncodeToString(dhashBytes)
 		aHash := hex.EncodeToString(ahashBytes)
@@ -364,6 +335,26 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		hashes["ahash"] = aHash
 
 	}
+
+	absolutePath, err := filepath.Abs(filename)
+	if err != nil {
+		logLevelln(0, "Failed to get absolute path")
+	}
+
+	// Run the onupload command
+	args := UploadCommandRunner{
+		Filepath:    filename,
+		Fullpath:    absolutePath,
+		Sha256:      hashes["sha256"],
+		Sha1:        hashes["sha1"],
+		Md5:         hashes["md5"],
+		Crc32:       hashes["crc32"],
+		Ahash:       hashes["ahash"],
+		Dhash:       hashes["dhash"],
+		ContentType: contentType,
+	}
+
+	go runOnUpload(args)
 
 	// Check if file already exists
 	_, err = os.Stat(filename)
@@ -381,6 +372,14 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 			Type:   contentType,
 		}
 		json.NewEncoder(w).Encode(response)
+
+		// Append the new filename to the existing list of filenames
+		_, err = db.Exec(`UPDATE data SET filenames = CONCAT(filenames, ?) WHERE id = ?`, dbFilenamesSeperator+origFileName, hashes["sha256"])
+		if err != nil {
+			http.Error(w, "Failed to update filename in database", http.StatusInternalServerError)
+			return
+		}
+
 		return
 	}
 
@@ -402,8 +401,8 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	logLevelln(1, "Storing hashes in database")
 
 	// Write the hashes and the current Unix time to the "data" table in the database
-	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, ahash, dhash, type, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], hashes["ahash"], hashes["dhash"], contentType, time.Now().Unix())
+	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, ahash, dhash, type, uploaded, filenames) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], hashes["ahash"], hashes["dhash"], contentType, time.Now().Unix(), origFileName)
 	if err != nil {
 		http.Error(w, "Failed to store hashes in database", http.StatusInternalServerError)
 		return
@@ -504,6 +503,11 @@ func handleGet2(w http.ResponseWriter, r *http.Request) {
 	// If no hash is provided, default to '0'
 	if p.Hash == "" {
 		http.Error(w, "No hash provided", http.StatusBadRequest)
+		return
+	}
+
+	if strings.Contains(p.Hash, "..") {
+		http.Error(w, "Invalid hash, did you try to access files outside of the data folder?", http.StatusBadRequest)
 		return
 	}
 
@@ -619,25 +623,20 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 
 	percentageUsed := float64(totalSize) / float64(totalSpace) * 100
 
-	var averageSpeed float64
-	if len(downloadSpeeds) > 0 {
-		var totalSpeed float64
-		for _, speed := range downloadSpeeds {
-			totalSpeed += speed
-		}
-		averageSpeed = totalSpeed / float64(len(downloadSpeeds))
-	} else {
-		averageSpeed = 0
-	}
+	cores := getCores()
+	memInfo := getMem()
 
 	response := map[string]interface{}{
-		"totalFiles":     len(files),
-		"totalSize":      totalSize,
-		"totalSpace":     totalSpace,
-		"availableSpace": availableSpace,
-		"percentageUsed": percentageUsed,
-		"version":        version,
-		"averageSpeed":   averageSpeed,
+		"uploadingDisabled":  *disableUpload,
+		"shorteningDisabled": *disableShorten,
+		"totalFiles":         len(files),
+		"totalSize":          totalSize,
+		"totalSpace":         totalSpace,
+		"availableSpace":     availableSpace,
+		"percentageUsed":     percentageUsed,
+		"version":            version,
+		"cores":              cores,
+		"memory":             memInfo,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -709,8 +708,11 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get current unix time
+	uploadTime := time.Now().Unix()
+
 	// URL is not in the database, insert it with hits set to  0
-	_, err = db.Exec("INSERT INTO urls (id, url, hits) VALUES (?, ?,  0)", id, request.URL)
+	_, err = db.Exec("INSERT INTO urls (id, url, hits, uploaded) VALUES (?, ?, 0, ?)", id, request.URL, uploadTime)
 	if err != nil {
 		response.Success = false
 		response.Error = "Failed to insert URL into database: " + err.Error()
@@ -771,9 +773,9 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 }
 
 func dbFixer() {
-	log.Println("Cleaning database")
+	logLevelln(0, "Cleaning database")
 
-	log.Println("Looking for missing files...")
+	logLevelln(0, "Looking for missing files...")
 	// Query the database to get all IDs
 	rows, err := db.Query("SELECT id FROM data")
 	if err != nil {
@@ -809,6 +811,7 @@ func dbFixer() {
 		log.Fatalf("Error iterating over rows: %v", err)
 	}
 }
+
 func isValidURL(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
@@ -883,5 +886,107 @@ func resniff() {
 func logLevelln(l int, s string) {
 	if *printLevel >= l {
 		logger.Println(s)
+	}
+}
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func onStart() {
+	// Check if data directory exists
+	_, err := os.Stat(*dataDir)
+	if os.IsNotExist(err) {
+		// Create data directory
+		err := os.Mkdir(*dataDir, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func getTotalDiskSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+	return stat.Blocks * uint64(stat.Bsize), nil
+}
+func getAvailableDiskSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+	return stat.Bavail * uint64(stat.Bsize), nil
+}
+func initDB() {
+	// Create table if it does not exist
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS urls (
+		id VARCHAR(255) PRIMARY KEY,
+		url TEXT NOT NULL,
+		hits INTEGER,
+		uploaded INTEGER
+	)`)
+	if err != nil {
+		log.Fatalf("Failed to create table: %v", err)
+	}
+	// Create data table
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS data (
+		id VARCHAR(255) PRIMARY KEY,
+		sha256 TEXT NOT NULL,
+		sha1 TEXT NOT NULL,
+		md5 TEXT NOT NULL,
+		crc32 TEXT NOT NULL,
+		ahash TEXT,
+		dhash TEXT,
+		type TEXT,
+		uploaded INTEGER NOT NULL,
+		filenames TEXT
+	)`)
+	if err != nil {
+		log.Fatalf("Failed to create table: %v", err)
+	}
+}
+
+func getCores() int {
+	return runtime.NumCPU()
+}
+
+func getMem() runtime.MemStats {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return memStats
+}
+
+func runOnUpload(args UploadCommandRunner) {
+	if *commandToRunOnUpload == "" {
+		return
+	}
+
+	modifiedCommand := *commandToRunOnUpload
+
+	modifiedCommand = strings.Replace(modifiedCommand, "{%FILEPATH%}", args.Filepath, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%FULLPATH%}", args.Fullpath, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%SHA256%}", args.Sha256, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%SHA1%}", args.Sha1, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%MD5%}", args.Md5, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%CRC32%}", args.Crc32, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%AHASH%}", args.Ahash, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%DHASH%}", args.Dhash, -1)
+	modifiedCommand = strings.Replace(modifiedCommand, "{%CONTENTTYPE%}", args.ContentType, -1)
+
+	// Split the command into executable and arguments
+	parts := strings.Fields(modifiedCommand)
+	cmd := exec.Command(parts[0], parts[1:]...)
+
+	logLevelln(0, "Running command: "+modifiedCommand)
+
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("Failed to execute command: %v\n", err)
 	}
 }

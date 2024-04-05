@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Modified by Boofdev for use in YAPC.
+// Most file formats are from http://fileformats.archiveteam.org
+// The original code can be found at https://github.com/golang/go/blob/master/src/net/http/sniff.go
+
 package sniff
 
 import (
@@ -224,6 +228,10 @@ var sniffSignatures = []sniffSig{
 
 	// ! Other and miscallaneous
 	&exactSig{[]byte("SQLite format 3"), "application/x-sqlite3"}, // * ADDED
+
+	// ! Valve formats
+	&exactSig{[]byte("VTF"), "image/vnd.valve.source.texture"},       // * ADDED
+	&exactSig{[]byte("VBSP"), "model/vnd.valve.source.compiled-map"}, // * ADDED
 
 	textSig{}, // should be last
 }
