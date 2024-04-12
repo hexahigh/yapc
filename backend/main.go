@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto"
 	"database/sql"
 	"embed"
@@ -43,7 +42,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "4.0.0"
+const version = "4.0.1"
 
 var (
 	dataDir              = flag.String("d", "./data", "Folder to store files")
@@ -227,13 +226,6 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		DHash  string `json:"dhash"`
 		Type   string `json:"type"`
 	}
-
-	// Create a context with a timeout
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	defer cancel() // Make sure to cancel the context when the function returns
-
-	// Use the context with a timeout for the request
-	r = r.WithContext(ctx)
 
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
@@ -423,17 +415,6 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(response)
-
-	// Before returning, check if the context was canceled due to a timeout
-	select {
-	case <-ctx.Done():
-		if ctx.Err() == context.DeadlineExceeded {
-			http.Error(w, "Request timed out", http.StatusRequestTimeout)
-			return
-		}
-	default:
-		// No timeout, proceed as normal
-	}
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
