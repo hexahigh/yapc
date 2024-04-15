@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+    backend:
+        image: hexahigh/yapc
+        ports:
+            - "9090:8080" # Backend port
+        volumes:
+          - ./data:/data
+        environment:
+          - YAPC_C=false # Compression
+          - YAPC_L=3 # Compression level
+          - YAPC_DB=mysql # Database type
+          - YAPC_DB:USER=yapc # Database user
+          - YAPC_DB:PASS=CHANGEME # Database password
+          - YAPC_DB:FILE=/data/yapc.db # Database path
+          - YAPC_DB:HOST=mysql:3306 # Database host
+          - YAPC_DB:DB=yapc # Database name
+        depends_on:
+            - mysql
+    
+    frontend:
+        image: hexahigh/yapc-frontend
+        ports:
+            - "3009:3009" # Frontend port
+        depends_on:
+            - backend
+
+    mysql:
+        image: mysql
+        ports:
+            - "3306:3306"
+        environment:
+            MYSQL_ROOT_PASSWORD: CHANGEME
+            MYSQL_DATABASE: yapc
+            MYSQL_USER: yapc
+            MYSQL_PASSWORD: CHANGEME
+        volumes:
+          - ./db:/var/lib/mysql

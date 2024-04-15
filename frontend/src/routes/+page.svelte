@@ -17,6 +17,7 @@
 	let ep = endpoint;
 	let doArchive = false;
 	let direct = false;
+	let useS256 = false;
 
 	let shortenLinks = [];
 	let linksInput = '';
@@ -108,12 +109,26 @@
 		await getStats();
 	});
 
+	function handleDragOver(event) {
+		event.preventDefault(); // Prevent default browser behavior like opening the file
+		event.dataTransfer.dropEffect = 'copy'; // Indicate allowed drop effect
+	}
+
+	function handleDrop(event) {
+		event.preventDefault();
+		const droppedFiles = event.dataTransfer.files;
+		files = [...droppedFiles];
+		handleSubmit();
+	}
+
 	async function handleSubmit(event) {
 		uploadCount = 0;
 		status = 'Uploading...';
 		uploadProgress = 0;
 		errorMessage = '';
-		event.preventDefault();
+		if (event) {
+			event.preventDefault();
+		}
 
 		for (let i = 0; i < files.length; i++) {
 			let filename = files[i].name || 'file.bin';
@@ -135,11 +150,25 @@
 					uploadCount++;
 					status = `Uploaded ${uploadCount}/${files.length} files. You can download the latest file from the link below:`;
 					let link;
+
 					if (!direct) {
-						link = encodeURI(`${currentDomain}/f2?h=${hash}&e=${ext}&f=${filename}`);
+						if (useS256) {
+							// Use SHA256 hash
+							link = encodeURI(`${currentDomain}/f2?h=${hash.sha256}&e=${ext}&f=${filename}`);
+						} else {
+							// Use CRC32 hash
+							link = encodeURI(`${currentDomain}/f2?h=${hash.crc32}&e=${ext}&f=${filename}`);
+						}
 					} else {
-						link = encodeURI(`${ep}/get2?h=${hash}&e=${ext}&f=${filename}`);
+						if (useS256) {
+							// Use SHA256 hash
+							link = encodeURI(`${ep}/get2?h=${hash.sha256}&e=${ext}&f=${filename}`);
+						} else {
+							// Use CRC32 hash
+							link = encodeURI(`${ep}/get2?h=${hash.crc32}&e=${ext}&f=${filename}`);
+						}
 					}
+
 					if (shortenUrl) {
 						link = await shortenLink(link);
 					} else {
@@ -304,7 +333,14 @@
 		<form on:submit={handleSubmit} class="p-6 mt-10 rounded shadow-md shadow-white w-80">
 			<div class="flex flex-col">
 				<label for="file" class="mb-2 font-bold text-lg">Upload Files</label>
-				<input id="file" type="file" bind:files multiple required class="p-2 border rounded-md" />
+				<input id="file" type="file" bind:files multiple class="p-2 border rounded-md" />
+				<div
+					on:dragover={handleDragOver}
+					on:drop={handleDrop}
+					class="mt-4 border dashed border-gray-400 rounded p-4 text-center hover:bg-gray-100"
+				>
+					Drag and drop files here
+				</div>
 			</div>
 			<button
 				type="submit"
@@ -322,10 +358,17 @@
 			</label>
 			<label
 				class="flex items-center mt-4"
-				title="Download directly from the endpoint instead of using the proxy"
+				title="Use SHA256 instead of CRC32, this creates longer links but files are less prone to corruption"
+			>
+				<input type="checkbox" bind:checked={useS256} class="form-checkbox" />
+				<span class="ml-2">Use SHA256</span>
+			</label>
+			<label
+				class="flex items-center mt-4"
+				title="Downloads directly from the primary server"
 			>
 				<input type="checkbox" bind:checked={direct} class="form-checkbox" />
-				<span class="ml-2">Direct download</span>
+				<span class="ml-2">Direct</span>
 			</label>
 			<p id="status" class="mt-4 text-center">{status}</p>
 			{#if uploadProgress > 0 && uploadProgress < 100}
@@ -414,6 +457,7 @@
 	</div>
 	<footer class="w-full text-center border-t border-grey p-4 pin-b">
 		<a href="https://github.com/hexahigh/yapc" class="hover:underline">Source</a>
+		<a href="https://status.080609.xyz/status/yapc" class="hover:underline ml-4">Status</a>
 		<a href="/terms" class="hover:underline ml-4">Terms</a>
 		<button on:click={toggleInfo} class="py-2 px-4 rounded hover:underline"> Info </button>
 		<div class="flex justify-center">

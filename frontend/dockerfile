@@ -1,0 +1,20 @@
+FROM node:21-alpine3.19
+
+RUN apk add --no-cache \
+    git
+
+RUN git clone https://github.com/hexahigh/yapc.git /source && \
+    cd /source && \
+    git checkout main && \
+    git pull
+
+WORKDIR /source/frontend
+
+RUN sed -i 's/adapter-auto/adapter-node/g' svelte.config.js
+
+RUN cat svelte.config.js
+
+RUN npm install
+
+ENV PORT=3009
+ENTRYPOINT npm run build && node build
