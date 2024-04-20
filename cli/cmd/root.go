@@ -8,7 +8,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+
+	"github.com/hexahigh/yapc/cli/lib/config"
 )
 
 var (
@@ -35,31 +36,16 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	cfgFile = rootCmd.PersistentFlags().StringP("config", "c", "", "config file (default is $HOME/.yapc.yaml)")
+	cfgFile = rootCmd.PersistentFlags().StringP("config", "c", "", "config file (default is os.userConfigDir/yapc-cli/config.json)")
 }
 
 func initConfig() {
 	if *cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(*cfgFile)
+		config.CheckAndGenerate(*cfgFile)
 	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".yapc")
-
-		viper.SetDefault("Endpoint", "https://pomf1.080609.xyz")
+		*cfgFile = config.GetDefaultLocation()
+		config.CheckAndGenerate(*cfgFile)
 	}
 
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
-		fmt.Println(err)
-	}
+	fmt.Println("Using config file:", *cfgFile)
 }

@@ -7,16 +7,21 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/filepicker"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+
+	"github.com/hexahigh/yapc/cli/lib/config"
 )
 
 var (
@@ -27,11 +32,27 @@ var (
 var uploadCmd = &cobra.Command{
 	Use:   "upload [file...]",
 	Short: "Upload a file",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		for _, path := range args {
-			if err := uploadFileOrDir(path); err != nil {
-				fmt.Printf("Error uploading %s: %v\n", path, err)
+		// Get the endpoint from the config
+		endpoint = config.GetString(*cfgFile, "Endpoint")
+		// If args is empty then use filepicker
+		if len(args) != 0 {
+			for _, path := range args {
+				if err := uploadFileOrDir(path); err != nil {
+					fmt.Printf("Error uploading %s: %v\n", path, err)
+				}
+			}
+		} else {
+			fp := filepicker.New()
+			fp.CurrentDirectory, _ = os.Getwd()
+			fpm := fpModel{
+				filepicker: fp,
+			}
+			tm, _ := tea.NewProgram(&fpm).Run()
+			mm := tm.(fpModel)
+			if mm.selectedFile != "" {
+				uploadFile(mm.selectedFile)
 			}
 		}
 	},
@@ -39,12 +60,6 @@ var uploadCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(uploadCmd)
-
-	// Find and load the config file
-	initConfig()
-
-	// Get the endpoint from the config
-	endpoint = viper.GetString("Endpoint")
 }
 
 func uploadFileOrDir(path string) error {
@@ -146,24 +161,74 @@ func uploadFile(path string) {
 	fmt.Printf("Uploaded %s: %s\n", path, respData.SHA256)
 }
 
-type uploadModel struct {
-	progress float64
+type fpModel struct {
+	filepicker   filepicker.Model
+	selectedFile string
+	quitting     bool
+	err          error
 }
 
-func (m *uploadModel) Init() tea.Cmd {
-	return nil
+type clearErrorMsg struct{}
+
+func clearErrorAfter(t time.Duration) tea.Cmd {
+	return tea.Tick(t, func(_ time.Time) tea.Msg {
+		return clearErrorMsg{}
+	})
 }
 
-func (m *uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m fpModel) Init() tea.Cmd {
+	return m.filepicker.Init()
+}
+
+func (m fpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if msg.Type == tea.KeyEnter {
+		switch msg.String() {
+		case "ctrl+c", "q":
+			m.quitting = true
 			return m, tea.Quit
 		}
+	case clearErrorMsg:
+		m.err = nil
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	m.filepicker, cmd = m.filepicker.Update(msg)
+
+	// Did the user select a file?
+	if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
+		// Get the path of the selected file.
+		m.selectedFile = path
+
+		m.quitting = true
+		return m, tea.Quit
+	}
+
+	// Did the user select a disabled file?
+	// This is only necessary to display an error to the user.
+	if didSelect, path := m.filepicker.DidSelectDisabledFile(msg); didSelect {
+		// Let's clear the selectedFile and display an error.
+		m.err = errors.New(path + " is not valid.")
+		m.selectedFile = ""
+		return m, tea.Batch(cmd, clearErrorAfter(2*time.Second))
+	}
+
+	return m, cmd
 }
 
-func (m *uploadModel) View() string {
-	return fmt.Sprintf("Uploading... %0.2f%%\n", m.progress*100)
+func (m fpModel) View() string {
+	if m.quitting {
+		return ""
+	}
+	var s strings.Builder
+	s.WriteString("\n  ")
+	if m.err != nil {
+		s.WriteString(m.filepicker.Styles.DisabledFile.Render(m.err.Error()))
+	} else if m.selectedFile == "" {
+		s.WriteString("Pick a file:")
+	} else {
+		s.WriteString("Selected file: " + m.filepicker.Styles.Selected.Render(m.selectedFile))
+	}
+	s.WriteString("\n\n" + m.filepicker.View() + "\n")
+	return s.String()
 }
