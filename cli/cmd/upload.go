@@ -19,6 +19,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/filepicker"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 
 	"github.com/hexahigh/yapc/cli/lib/config"
@@ -88,6 +89,16 @@ func uploadFileOrDir(path string) error {
 }
 
 func uploadFile(path string) {
+	// Get file size
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		fmt.Printf("Error getting file info: %v\n", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+
+	bar := progressbar.DefaultBytes(fileSize, filepath.Base(path))
+
 	// Open the file
 	file, err := os.Open(path)
 	if err != nil {
@@ -107,8 +118,14 @@ func uploadFile(path string) {
 		return
 	}
 
-	// Copy the file content to the form file field
-	_, err = io.Copy(part, file)
+	// Create a custom writer that updates the progress bar
+	customWriter := &progressWriter{
+		writer: part,
+		bar:    bar,
+	}
+
+	// Copy the file content to the custom writer
+	_, err = io.Copy(customWriter, file)
 	if err != nil {
 		fmt.Printf("Error copying file content: %v\n", err)
 		return
@@ -231,4 +248,18 @@ func (m fpModel) View() string {
 	}
 	s.WriteString("\n\n" + m.filepicker.View() + "\n")
 	return s.String()
+}
+
+type progressWriter struct {
+	writer io.Writer
+	bar    *progressbar.ProgressBar
+}
+
+func (pw *progressWriter) Write(p []byte) (n int, err error) {
+	n, err = pw.writer.Write(p)
+	if err != nil {
+		return n, err
+	}
+	pw.bar.Add(n)
+	return n, nil
 }
