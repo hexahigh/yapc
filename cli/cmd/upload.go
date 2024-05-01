@@ -26,7 +26,8 @@ import (
 )
 
 var (
-	endpoint string
+	endpoint   string
+	noProgress bool
 )
 
 // uploadCmd represents the upload command
@@ -35,8 +36,10 @@ var uploadCmd = &cobra.Command{
 	Short: "Upload a file",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Get the endpoint from the config
-		endpoint = config.GetString(*cfgFile, "Endpoint")
+		if endpoint == "" {
+			// Get the endpoint from the config
+			endpoint = config.GetString(*cfgFile, "Endpoint")
+		}
 		// If args is empty then use filepicker
 		if len(args) != 0 {
 			for _, path := range args {
@@ -61,6 +64,9 @@ var uploadCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(uploadCmd)
+
+	uploadCmd.Flags().StringVarP(&endpoint, "endpoint", "e", "", "YAPC endpoint")
+	uploadCmd.Flags().BoolVarP(&noProgress, "no-progress", "n", false, "Disable progress bar")
 }
 
 func uploadFileOrDir(path string) error {
@@ -97,7 +103,12 @@ func uploadFile(path string) {
 	}
 	fileSize := fileInfo.Size()
 
-	bar := progressbar.DefaultBytes(fileSize, filepath.Base(path))
+	var bar *progressbar.ProgressBar
+
+	if !noProgress {
+		bar = progressbar.DefaultBytes(fileSize, filepath.Base(path))
+
+	}
 
 	// Open the file
 	file, err := os.Open(path)
@@ -260,6 +271,8 @@ func (pw *progressWriter) Write(p []byte) (n int, err error) {
 	if err != nil {
 		return n, err
 	}
-	pw.bar.Add(n)
+	if !noProgress {
+		pw.bar.Add(n)
+	}
 	return n, nil
 }
