@@ -23,6 +23,9 @@ dependencies:
   mime:
     specifier: ^4.0.1
     version: 4.0.1
+  pocketbase:
+    specifier: ^0.21.2
+    version: 0.21.2
   pretty-bytes:
     specifier: ^6.1.1
     version: 6.1.1
@@ -1615,6 +1618,10 @@ packages:
     optionalDependencies:
       fsevents: 2.3.2
     dev: true
+
+  /pocketbase@0.21.2:
+    resolution: {integrity: sha512-XZdgU9dEv3TPjexDRHy5feYrZrJhWqxTki8ClFGpsnC51G3Qkwoa/U7CVG72jYcLDP3p0HiEhRUUevnlryWkHA==}
+    dev: false
 
   /postcss-import@15.1.0(postcss@8.4.32):
     resolution: {integrity: sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==}

@@ -1,7 +1,8 @@
 <script>
 	import { writable } from 'svelte/store';
 	import { darkMode } from '$lib/dark.js';
-  import { DollarSolid } from 'flowbite-svelte-icons';
+	import { startAnalyticsMonitoring } from "$lib/analytics.js";
+	import { onMount } from 'svelte';
 	import '../app.css';
 
 	const currentClass = writable('mocha'); // Default class
@@ -11,6 +12,10 @@
 	function toggleClass() {
 		currentClass.update((c) => (c === 'mocha' ? 'latte' : 'mocha'));
 	}
+
+	onMount(() => {
+		startAnalyticsMonitoring();
+	});
 </script>
 
 <div class="bg-yellow-300 text-center p-2">

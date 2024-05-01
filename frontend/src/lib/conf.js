@@ -25,3 +25,7 @@ export const loadEndpoints = [ // Used in the load balancer
         lon: '10.9484'
     }
 ]
+
+// Stuff you probably don't need to (or should) change
+
+export const dbEndpoint = 'https://db.080609.xyz';
