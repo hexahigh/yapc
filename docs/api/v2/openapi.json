@@ -243,12 +243,6 @@
                       "percentageUsed": {
                         "type": "number"
                       },
-                      "compression": {
-                        "type": "boolean"
-                      },
-                      "compression_level": {
-                        "type": "integer"
-                      },
                       "version": {
                         "type": "string"
                       },

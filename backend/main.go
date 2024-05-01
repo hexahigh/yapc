@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -69,6 +70,11 @@ const dbFilenamesSeperator = "||!??|"
 
 var db *sql.DB
 var logger *log.Logger
+
+var (
+	uploadCount   int64
+	downloadCount int64
+)
 
 //go:embed LICENSE
 var licenseFS embed.FS
@@ -156,6 +162,7 @@ func main() {
 	http.HandleFunc("/ping", handlePing)
 	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/u/", handleU)
+	http.HandleFunc("/load", handleLoad)
 
 	if !*disableUpload {
 		http.HandleFunc("/store", handleStore)
@@ -217,6 +224,9 @@ func handleExists(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStore(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt64(&uploadCount, 1)
+	defer atomic.AddInt64(&uploadCount, -1)
+
 	type StoreResponse struct {
 		SHA256 string `json:"sha256"`
 		SHA1   string `json:"sha1"`
@@ -418,6 +428,9 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt64(&downloadCount, 1)
+	defer atomic.AddInt64(&downloadCount, -1)
+
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
 		return
@@ -457,6 +470,9 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGet2(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt64(&downloadCount, 1)
+	defer atomic.AddInt64(&downloadCount, -1)
+
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
 		return
@@ -751,6 +767,22 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("pong"))
+}
+
+func handleLoad(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	response := map[string]interface{}{
+		"uploads":   atomic.LoadInt64(&uploadCount),
+		"downloads": atomic.LoadInt64(&downloadCount),
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func dbFixer() {
