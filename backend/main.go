@@ -43,7 +43,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "4.0.2"
+const version = "4.0.3"
 
 var (
 	dataDir              = flag.String("d", "./data", "Folder to store files")
@@ -64,6 +64,7 @@ var (
 	commandToRunOnUpload = flag.String("run:upload", "", "Run a command on upload. View run.md for more info")
 	waitForIt            = flag.Bool("wfi", false, "Wait for the database to be initialized")
 	printLicense         = flag.Bool("l", false, "Print license")
+	maxFileSize          = flag.Int64("maxfilesize", 1024*1024*1024*2, "Max file size in bytes")
 )
 
 const dbFilenamesSeperator = "||!??|"
@@ -246,9 +247,16 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, *maxFileSize)
+
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, "Failed to retrieve file", http.StatusBadRequest)
+		// Check if the error is due to the file size exceeding the limit
+		if err.Error() == "http: request body too large" {
+			http.Error(w, "File size too large", http.StatusRequestEntityTooLarge)
+		} else {
+			http.Error(w, "Failed to retrieve file", http.StatusBadRequest)
+		}
 		return
 	}
 	defer file.Close()
