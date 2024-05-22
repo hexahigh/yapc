@@ -38,8 +38,8 @@ import (
 
 	"golang.org/x/image/webp"
 
+	"github.com/hexahigh/go-lib/sniff"
 	"github.com/hexahigh/yapc/backend/lib/hash"
-	"github.com/hexahigh/yapc/backend/lib/sniff"
 	"github.com/peterbourgon/ff"
 )
 
