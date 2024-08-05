@@ -43,7 +43,7 @@ import (
 	"github.com/peterbourgon/ff"
 )
 
-const version = "4.0.3"
+const version = "4.0.4"
 
 var (
 	dataDir              = flag.String("d", "./data", "Folder to store files")
@@ -66,8 +66,6 @@ var (
 	printLicense         = flag.Bool("l", false, "Print license")
 	maxFileSize          = flag.Int64("maxfilesize", 1024*1024*1024*2, "Max file size in bytes")
 )
-
-const dbFilenamesSeperator = "||!??|"
 
 var db *sql.DB
 var logger *log.Logger
@@ -249,7 +247,7 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, *maxFileSize)
 
-	file, fileHeader, err := r.FormFile("file")
+	file, _, err := r.FormFile("file")
 	if err != nil {
 		// Check if the error is due to the file size exceeding the limit
 		if err.Error() == "http: request body too large" {
@@ -260,13 +258,6 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-
-	// Get the file name
-	origFileName := fileHeader.Filename
-
-	if origFileName == "" || len(origFileName) > 1024 {
-		origFileName = "unknownOrTooLong"
-	}
 
 	// Create a buffer to hold the file data
 	buf := new(bytes.Buffer)
@@ -383,13 +374,6 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(response)
 
-		// Append the new filename to the existing list of filenames
-		_, err = db.Exec(`UPDATE data SET filenames = CONCAT(filenames, ?) WHERE id = ?`, dbFilenamesSeperator+origFileName, hashes["sha256"])
-		if err != nil {
-			http.Error(w, "Failed to update filename in database", http.StatusInternalServerError)
-			return
-		}
-
 		return
 	}
 
@@ -411,8 +395,8 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	logLevelln(1, "Storing hashes in database")
 
 	// Write the hashes and the current Unix time to the "data" table in the database
-	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, ahash, dhash, type, uploaded, filenames) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], hashes["ahash"], hashes["dhash"], contentType, time.Now().Unix(), origFileName)
+	_, err = db.Exec(`INSERT INTO data (id, sha256, sha1, md5, crc32, ahash, dhash, type, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		hashes["sha256"], hashes["sha256"], hashes["sha1"], hashes["md5"], hashes["crc32"], hashes["ahash"], hashes["dhash"], contentType, time.Now().Unix())
 	if err != nil {
 		http.Error(w, "Failed to store hashes in database", http.StatusInternalServerError)
 		return
@@ -965,8 +949,7 @@ func initDB() {
 		ahash TEXT,
 		dhash TEXT,
 		type TEXT,
-		uploaded INTEGER NOT NULL,
-		filenames TEXT
+		uploaded INTEGER NOT NULL
 	)`)
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
