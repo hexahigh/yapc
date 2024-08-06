@@ -1,6 +1,5 @@
 <script>
 	import logo from '$lib/img/logo.svg';
-	//
 </script>
 
 <div class="flex flex-col items-center justify-center min-h-screen">
@@ -47,6 +46,13 @@
 				<p><a href="https://catbox.moe" target="_blank" rel="noreferrer">Catbox</a> is known for its simplicity and reliability. It offers straightforward file hosting without the need for an account, making it an excellent choice for quick uploads. Catbox supports files up to 200MB in size and keeps them forever.</p>
 			</li>
 		</ul>
+<p class="mt-8">
+So long and thanks for all the fish.
+<br>
+- Boofdev
+<br>
+05/08/2024
+</p>
 	</div>
 </div>
 
